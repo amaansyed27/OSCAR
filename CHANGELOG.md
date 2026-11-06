@@ -1,5 +1,13 @@
 # Changelog
 
+Entries describe each stage at its date. Later entries supersede earlier behavior and limitations.
+
+## 2026-11-07 — Repository and documentation audit
+
+- Updated setup instructions and the environment template for the current Tauri/Rust app.
+- Removed obsolete Android asset links and clarified current features, historical checks and pending owner approval.
+- Checked tracked files and local documentation links; private data and generated builds remain outside Git.
+
 ## 2026-11-06 — Tauri migration
 
 - Switched the desktop app to Tauri and Rust while keeping the same interface, themes and Orb.

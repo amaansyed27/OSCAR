@@ -1,8 +1,9 @@
 # OSCAR — Vision Status Checklist
 
 **Repository:** [amaansyed27/OSCAR](https://github.com/amaansyed27/OSCAR)  
+**Current implementation:** version 0.2.0, Tauri 2/Rust Windows Desktop. [Current engineering verification](#slice-01--taurirust-migration-2026-11-06); owner approval and installer acceptance remain pending.
 **Starting baseline:** Fresh repository, documentation first.  
-**Truth rule:** An unchecked box means **not yet implemented and verified in this new repository**. It does **not** imply the legacy OSCAR codebase lacked the feature. Reuse is possible after an explicit evaluation.
+**Truth rule:** An unchecked broad capability box means **not yet fully implemented, verified and accepted in this new repository**. Scoped engineering results are recorded below; they do not imply acceptance of the whole capability. It does **not** imply the legacy OSCAR codebase lacked the feature. Reuse is possible after an explicit evaluation.
 
 > This is an owner-facing product checklist, **not** a promise that everything can be completed in a few days. Only mark a feature complete when it has a working, accepted end-to-end path. Sub-features may move to separate feature records as work begins.
 
@@ -139,6 +140,8 @@ Earlier verification caught a retired-model 404, citation formatting/source-ID i
 
 ## Slice 01 revision — Simple Desktop UI and LRA (2026-11-06)
 
+*Historical Electron implementation; superseded by the Tauri migration below.*
+
 **Engineering verification passed; owner visual and product acceptance pending.** This revises the existing Electron application and preserves its original database and credentials.
 
 - [x] Exactly three pages: Conversation, Memories and Settings. Narrow responsive navigation; canonical SVG Orb; local Neuhade, identity-only AZONIX and DM Mono for code.
@@ -164,9 +167,11 @@ Actual screenshots cover all three populated pages in both themes at 1536×900 a
 
 **Remaining limits:** retrieval and redaction are lexical, with recorded source/span dependencies; broad semantic recall and uncited legacy paraphrases are not comprehensively verified. Automatic memory classification and deterministic working-note extraction can miss or misinterpret information. Summaries are extractive source projections, not a complete semantic world model. Background learning can be delayed or fail under quota/network limits; manual source-based memory controls remain available. Storage and retained backups are unencrypted. Forgetting is not secure erasure of original chat, backups or provider data. No export/delete UI, installer, voice, Workers, Automations, sync or other product screens are included.
 
-**Current overall state: Slice 01 revision is runnable and engineering-verified. Stop here for owner review; no next feature is authorized by this status.**
+**State at this stage:** Slice 01 revision was runnable and engineering-verified, pending owner review. The current runtime is recorded in the Tauri migration below.
 
 ## Slice 01 navigation and motion refinement (2026-11-06)
+
+*Historical Electron verification; the same controls were rechecked in Tauri below.*
 
 - [x] Expandable icon navigation with persisted width, hover/focus tooltips, bottom Settings and an intentionally inactive profile icon.
 - [x] Dedicated searchable Settings navigation for Appearance, Model, Memory and Data & privacy, with existing working controls.

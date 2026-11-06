@@ -2,7 +2,7 @@
 
 **One intelligence. One continuing relationship. Many devices.**
 
-**OSCAR** is Dawnlight Labs' general-purpose personal AI: a persistent, expressive intelligence that can reason, remember, converse, use authorized tools, coordinate delegated Workers, manage routines, and help its owner across desktop, mobile, and optional local or cloud hosts.
+**OSCAR** is Dawnlight Labs' personal AI project. The current Slice 01 provides a Windows conversation app with persistent history and personal memory. Tools, Workers, routines, mobile and cross-device operation belong to the broader [product vision](VISION.md), not this release.
 
 OSCAR is intended to **help people, not replace their judgment or control**. It is designed around personal ownership, privacy-aware permissions, model freedom, a recognizable animated Orb, and a consistent experience across devices.
 
@@ -13,7 +13,7 @@ OSCAR is intended to **help people, not replace their judgment or control**. It 
 - [VISION.md](VISION.md) — complete product vision, architecture, features, flows, and platform plans.
 - [VISION-STATUS.md](VISION-STATUS.md) — capability-by-capability checklist for the new repository.
 
-## Run Desktop (Slice 01)
+## Run Desktop (Slice 01, version 0.2.0)
 
 Windows with Node.js 24+, npm, Rust stable (MSVC toolchain), Visual Studio C++ Build Tools and Microsoft Edge WebView2:
 
@@ -23,10 +23,13 @@ npm ci
 npm start
 ```
 
+For a fresh checkout, create `.env.local` from [.env.example](.env.example) and add a Groq key. Preserve an existing private configuration.
+
 The first build downloads Rust dependencies. OSCAR runs as a Tauri 2 desktop window using Windows WebView2, with a Rust backend and no Node/Electron runtime. The existing HTML/CSS interface, local fonts and Orb are retained.
 
-Build an optimized executable and Windows installer with `npm run build`. Outputs are `src-tauri/target/release/oscar-desktop.exe` and `src-tauri/target/release/bundle/nsis/OSCAR_0.2.0_x64-setup.exe`. Node/npm are development tools, not installed-app requirements. The installer is unsigned; installation and uninstall remain for owner review.
-It reads `GROQ_API_KEY` or `GROQ_API_KEY_1` from the existing local `.env` / `.env.local` without changing either file. The default is Groq's `openai/gpt-oss-20b`. Internet access and available provider quota are required. No simulated replies or silent provider fallback. Account billing and quota remain controlled by Groq. `OSCAR_CONFIG_DIR` can select the folder holding the configuration. After a configured launch, its folder path is remembered in the local database so the installed app can reuse it; credentials are never copied into the bundle.
+Build an optimized executable and Windows installer with `npm run build`. Outputs are `src-tauri/target/release/oscar-desktop.exe` and `src-tauri/target/release/bundle/nsis/OSCAR_0.2.0_x64-setup.exe`. Node/npm are development tools, not installed-app requirements. The installer is unsigned; installation and uninstall remain for owner review. Build outputs, test screenshots and local data are ignored by Git; the repository contains the source needed to regenerate them.
+
+It reads `GROQ_API_KEY` or `GROQ_API_KEY_1` from the existing local `.env` / `.env.local` without changing either file. The default is Groq's `openai/gpt-oss-20b`; `openai/gpt-oss-120b` is also selectable. Other providers and automatic key rotation are not implemented. Internet access and available provider quota are required. No simulated replies or silent provider fallback. Account billing and quota remain controlled by Groq. `OSCAR_CONFIG_DIR` can select the folder holding the configuration. After a configured launch, its folder path is remembered in the local database so the installed app can reuse it; credentials are never copied into the bundle. Configuration-file values override matching process environment values; `.env.local` overrides `.env`. Set `OSCAR_CONFIG_DIR` and `OSCAR_DATA_DIR` in the launch environment.
 
 ## Conversation and memory
 
@@ -52,6 +55,7 @@ The database is local and unencrypted. Selected excerpts and memories are sent t
 
 ```powershell
 npm test
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 npm run test:desktop
 npm run test:performance
 npm run test:ui
@@ -60,6 +64,8 @@ npm run test:release
 ```
 
 The desktop suite attaches to a loopback-only WebView2 debugging port in isolated test windows. Normal app launches do not enable this port. It launches real Tauri/WebView2 windows with isolated test data and calls the real provider. It uses quota. It covers persistence, streamed answers/cancellation, current and historical preferences, unrelated recall after forgetting, search/jump, model selection, themes, large history and error recovery. The transport-error test uses a loopback server that closes the connection, then retries against real Groq. Its optional `OSCAR_GROQ_ENDPOINT` override accepts HTTP loopback only; it is not used for normal launches.
+
+`npm test` runs 23 Rust checks (19 LRA/storage checks and four transport checks). The development and release desktop suites require available Groq quota and must run one at a time with the normal app closed, because OSCAR enforces a single desktop instance.
 
 `test:release` exercises the optimized executable with a real streamed reply, restart, memory and six screenshots in isolated data.
 

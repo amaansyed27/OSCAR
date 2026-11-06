@@ -16,11 +16,13 @@ platform icons, thumbnails and previews. These legacy files predate this SVG;
 they are not asserted to be newly exported or pixel-identical derivatives.
 Future raster exports should derive from the canonical SVG.
 
-OSCAR Mobile's native `oscar_orb.png` is a deterministic Chromium 2x render of this
-unchanged SVG, including its filter/shadow. [Render receipt](../../mobile/orb-render.json)
-binds source and output digests; [the maintainer tool](../../scripts/render_mobile_orb.py)
-regenerates it. The APK packages the original SVG too. This is a format conversion,
-not new branding, geometry or an accepted expressive-avatar implementation.
+The current desktop app uses this SVG for static Orb images and an inline
+source-derived version for the empty-state face animation. The canonical file
+remains unchanged. Reduced motion preserves the static winking expression.
 
-This asset establishes visual identity; it does not establish implemented UI,
-Android behavior, manual acceptance or any Gate B completion claim.
+Android rendering receipts and maintainer tools from the legacy repository are
+not present here. No Android build or device verification is claimed by these
+assets.
+
+This asset establishes visual identity; it does not establish owner UI approval
+or acceptance of future desktop/mobile features.
