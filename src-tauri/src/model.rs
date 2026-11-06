@@ -5,6 +5,8 @@ use std::{collections::HashMap, path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 #[derive(Clone)]
 pub struct Model {
+    pub platform: Option<std::sync::Arc<crate::cloud::Platform>>,
+    pub targets: Vec<crate::adapters::Target>,
     pub client: reqwest::Client,
     key: String,
     pub model: String,
@@ -43,6 +45,8 @@ impl Model {
             }
         }
         Ok(Self {
+            platform: None,
+            targets: vec![],
             client: reqwest::Client::builder()
                 .timeout(Duration::from_secs(90))
                 .redirect(reqwest::redirect::Policy::none())
@@ -61,8 +65,46 @@ impl Model {
         })
     }
     pub fn configured(&self) -> bool {
-        !self.key.is_empty()
+        self.platform
+            .as_ref()
+            .map(|p| {
+                p.providers()
+                    .ok()
+                    .and_then(|v| v.as_array().cloned())
+                    .unwrap_or_default()
+                    .iter()
+                    .any(|v| {
+                        v["kind"] == "inference"
+                            && p.credential(crate::store::st(v, "id"), None).is_ok()
+                    })
+            })
+            .unwrap_or(!self.key.is_empty())
     }
+    pub fn prepare(
+        &self,
+        text: &str,
+        vision: bool,
+        documents: bool,
+    ) -> Result<(Self, crate::routing::Decision)> {
+        let mut model = self.clone();
+        if let Some(platform) = &self.platform {
+            let (targets, decision) = platform.targets(&self.model, text, vision, documents)?;
+            let first = &targets[0].spec;
+            model.budget = first
+                .context
+                .unwrap_or(8192)
+                .saturating_sub(first.output.unwrap_or(4000).min(16000) + 1024)
+                .clamp(1024, 32000);
+            model.targets = targets;
+            Ok((model, decision))
+        } else {
+            Ok((
+                model,
+                crate::routing::decide(text, "off", vision, documents),
+            ))
+        }
+    }
+
     async fn request(
         &self,
         messages: Value,
@@ -106,6 +148,17 @@ impl Model {
         Ok(response)
     }
     pub async fn complete(&self, messages: Value, cancel: &CancellationToken) -> Result<String> {
+        if let Some(platform) = &self.platform {
+            let prepared = if self.targets.is_empty() {
+                self.prepare("Extract personal memory JSON", false, false)?
+                    .0
+            } else {
+                self.clone()
+            };
+            return crate::adapters::complete(platform, &prepared.targets[0], messages, cancel)
+                .await;
+        }
+
         let response = self.request(messages, true, false, cancel).await?;
         let value: Value = tokio::select! {
         _=cancel.cancelled()=>return Err(anyhow!("Stopped")),v=response.json()=>v.map_err(|_|anyhow!("The model returned an incomplete response."))?};
@@ -123,6 +176,9 @@ impl Model {
         cancel: &CancellationToken,
         mut delta: impl FnMut(&str, &str) -> Result<()>,
     ) -> Result<(String, Value)> {
+        if let Some(platform) = &self.platform {
+            return crate::adapters::stream(platform, &self.targets, messages, cancel, delta).await;
+        }
         let response = self.request(messages, false, true, cancel).await?;
         let mut stream = response.bytes_stream();
         let (mut pending, mut content, mut usage, mut done, mut reason) = (
@@ -260,6 +316,8 @@ mod tests {
             }
         });
         Model {
+            platform: None,
+            targets: vec![],
             client: reqwest::Client::new(),
             key: "test-only".into(),
             model: "openai/gpt-oss-20b".into(),

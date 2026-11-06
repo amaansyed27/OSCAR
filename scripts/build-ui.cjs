@@ -13,3 +13,22 @@ for (const file of [
   fs.mkdirSync(path.dirname(to), { recursive: true });
   fs.copyFileSync(path.join(root, "node_modules", file), to);
 }
+
+require("esbuild").buildSync({
+  entryPoints: [path.join(root, "scripts/rich-vendor.mjs")],
+  outfile: path.join(out, "vendor/rich.js"),
+  bundle: true,
+  format: "iife",
+  globalName: "RichVendor",
+  minify: true,
+  loader: { ".woff": "file", ".woff2": "file", ".ttf": "file" },
+  assetNames: "fonts/[name]-[hash]",
+  logLevel: "warning",
+});
+for (const name of ["mermaid", "katex", "highlight.js"]) {
+  for (const file of ["LICENSE", "LICENSE.md"]) {
+    const source = path.join(root, "node_modules", name, file);
+    if (fs.existsSync(source))
+      fs.copyFileSync(source, path.join(out, "vendor", name + "-LICENSE.txt"));
+  }
+}

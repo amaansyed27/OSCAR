@@ -9,6 +9,7 @@
     />
     <title>OSCAR</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="../vendor/rich.css" />
   </head>
   <body class="collapsed">
     <aside class="sidebar">
@@ -67,7 +68,16 @@
       </div>
     </aside>
     <div class="workspace">
-      <header><h1 id="page-title">Conversation</h1></header>
+      <header>
+        <h1 id="page-title">Conversation</h1>
+        <button
+          id="clear-chat"
+          class="subtle"
+          title="Clear the visible chat; keep history and memory"
+        >
+          Clear chat
+        </button>
+      </header>
       <div id="notice" role="status" hidden></div>
       <section id="page-conversation" class="page">
         <main id="chat-scroll" aria-label="Conversation">
@@ -189,13 +199,14 @@
         </main>
         <div class="composer-wrap">
           <button id="present" hidden>Return to present ↓</button>
+          <div id="attachment-list" aria-label="Attached files"></div>
           <form id="composer">
             <label class="sr-only" for="message">Write to OSCAR</label
             ><textarea
               id="message"
               rows="1"
               placeholder="Write to OSCAR"
-              maxlength="24000"
+              maxlength="2000000"
             ></textarea
             ><button id="send" aria-label="Send message" title="Send message">
               ↑</button
@@ -209,6 +220,29 @@
               ■
             </button>
           </form>
+          <div class="composer-tools">
+            <button
+              id="attach-file"
+              aria-label="Attach files"
+              title="Attach files"
+            >
+              +
+            </button>
+            <input
+              id="file-input"
+              type="file"
+              multiple
+              hidden
+              accept=".txt,.md,.csv,.tsv,.json,.jsonl,.log,.rs,.py,.js,.ts,.css,.html,.xml,.yaml,.yml,.toml,.sql,.pdf,.docx,.xlsx,.pptx,image/png,image/jpeg,image/webp,image/gif"
+            />
+            <button id="model-picker" aria-haspopup="dialog">Model</button>
+            <label class="sr-only" for="search-mode">Search mode</label
+            ><select id="search-mode">
+              <option value="auto">Auto search</option>
+              <option value="on">Search on</option>
+              <option value="off">Search off</option>
+            </select>
+          </div>
         </div>
       </section>
       <section id="page-memories" class="page scroll-page" hidden>
@@ -276,6 +310,23 @@
           />
           <nav aria-label="Settings categories">
             <button
+              data-settings="providers"
+              data-search="AI providers keys credentials cloud endpoints models"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M7 7h10v10H7zM3 12h4m10 0h4M12 3v4m0 10v4" /></svg
+              ><span>AI Providers</span>
+            </button>
+            <button
+              data-settings="personalization"
+              data-search="personality profile name custom instructions tone depth"
+            >
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21v-3c0-7 16-7 16 0v3" /></svg
+              ><span>Personalization</span>
+            </button>
+            <button
               data-settings="appearance"
               data-search="theme light dark system appearance"
               aria-controls="settings-appearance"
@@ -322,6 +373,262 @@
           </p>
         </aside>
         <div class="settings-content">
+          <section class="setting-panel" id="settings-providers" hidden>
+            <h2>AI Providers</h2>
+            <div class="inline-controls">
+              <label class="sr-only" for="provider-select">Provider</label
+              ><select id="provider-select"></select
+              ><button id="add-provider" class="outlined">Add provider</button>
+            </div>
+            <p id="provider-status" role="status" class="secondary"></p>
+            <div class="inline-controls">
+              <button id="discover-models" class="outlined">
+                Refresh models / validate</button
+              ><a id="provider-docs" target="_blank" rel="noreferrer"
+                >API documentation ↗</a
+              >
+            </div>
+            <h3>Credentials</h3>
+            <div id="credential-list"></div>
+            <form id="credential-form" class="settings-form">
+              <label
+                >Nickname<input
+                  name="nickname"
+                  maxlength="80"
+                  placeholder="Personal key"
+                  required /></label
+              ><label
+                >Credential<input
+                  name="secret"
+                  type="password"
+                  autocomplete="new-password"
+                  required
+                  placeholder="Stored with Windows protection" /></label
+              ><button class="outlined">Save credential</button>
+            </form>
+            <details>
+              <summary>Connection options</summary>
+              <form id="provider-form" class="settings-form">
+                <label>Name<input name="name" required /></label
+                ><label
+                  >Protocol<select name="protocol">
+                    <option value="openai">OpenAI Chat</option>
+                    <option value="responses">OpenAI Responses</option>
+                    <option value="anthropic">Anthropic Messages</option>
+                    <option value="gemini">Google Gemini</option>
+                    <option value="ollama">Ollama Cloud</option>
+                    <option value="cohere">Cohere v2</option>
+                    <option value="cloudflare">Cloudflare</option>
+                    <option value="bedrock">Bedrock Converse</option>
+                    <option value="replicate">Replicate</option>
+                  </select></label
+                ><label
+                  >HTTPS base URL<input
+                    name="base"
+                    type="url"
+                    required /></label
+                ><label
+                  >Authentication<select name="auth">
+                    <option value="bearer">Bearer token</option>
+                    <option value="anthropic-key">Anthropic key</option>
+                    <option value="google-key">Google API key</option>
+                    <option value="azure-key">Azure API key</option>
+                    <option value="api-key">Api-Key</option>
+                    <option value="none">No authentication</option>
+                  </select></label
+                ><label
+                  >Account / project options<input
+                    name="account"
+                    placeholder="Cloudflare account ID" /></label
+                ><label>Region<input name="region" /></label
+                ><label
+                  >Discovery path<input
+                    name="discovery"
+                    placeholder="models" /></label
+                ><label
+                  >Non-secret connection headers (JSON)<textarea
+                    name="headers"
+                    rows="3"
+                    placeholder='{"x-project-id":"project"}'
+                  ></textarea></label
+                ><button class="outlined">Save connection</button>
+              </form>
+            </details>
+            <h3>Models</h3>
+            <label class="secondary"
+              ><input id="allow-billable-test" type="checkbox" /> Allow
+              potentially billable connection tests (up to 256 output tokens per
+              test)</label
+            >
+            <label class="sr-only" for="model-search">Search models</label
+            ><input
+              id="model-search"
+              type="search"
+              placeholder="Search available models"
+            />
+            <div id="provider-models"></div>
+            <details>
+              <summary>Register a model / capability overrides</summary>
+              <form id="model-form" class="settings-form">
+                <label
+                  >Model ID<input
+                    name="model"
+                    required
+                    maxlength="200" /></label
+                ><label
+                  >Context tokens<input
+                    name="context"
+                    type="number"
+                    min="2048" /></label
+                ><label
+                  >Output tokens<input
+                    name="output"
+                    type="number"
+                    min="1" /></label
+                ><label
+                  >Vision verified<select name="vision">
+                    <option value="">Unknown</option>
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                  </select></label
+                ><label
+                  >Streaming verified<select name="streaming">
+                    <option value="">Unknown</option>
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                  </select></label
+                ><label
+                  >Input USD / million tokens<input
+                    name="input_price"
+                    type="number"
+                    min="0"
+                    step="any" /></label
+                ><label
+                  >Output USD / million tokens<input
+                    name="output_price"
+                    type="number"
+                    min="0"
+                    step="any" /></label
+                ><label
+                  >Evaluated quality score (0–100)<input
+                    name="quality"
+                    type="number"
+                    min="0"
+                    max="100" /></label
+                ><label
+                  >Documented reasoning levels<input
+                    name="reasoning"
+                    placeholder="low, medium, high" /></label
+                ><label
+                  >Reasoning API parameter<select name="reasoning_parameter">
+                    <option value="reasoning_effort">reasoning_effort</option>
+                    <option value="reasoning.effort">
+                      Responses reasoning.effort
+                    </option>
+                    <option value="reasoning.effort.openrouter">
+                      OpenRouter reasoning.effort
+                    </option>
+                    <option value="thinking.budget">
+                      Gemini thinking budget
+                    </option>
+                    <option value="thinking.level">
+                      Gemini thinking level
+                    </option>
+                    <option value="thinking.adaptive">
+                      Claude adaptive thinking
+                    </option>
+                    <option value="thinking.enabled">
+                      Claude enabled thinking
+                    </option>
+                  </select></label
+                ><button class="outlined">Save model</button>
+              </form>
+            </details>
+          </section>
+          <section class="setting-panel" id="settings-personalization" hidden>
+            <h2>Personalization</h2>
+            <form id="personalization-form" class="settings-form">
+              <label>Preferred name<input name="name" maxlength="100" /></label
+              ><label
+                >Background, occupation and interests<textarea
+                  name="background"
+                  rows="3"
+                  maxlength="2000"
+                ></textarea></label
+              ><label
+                >Projects and preferences<textarea
+                  name="projects"
+                  rows="3"
+                  maxlength="2000"
+                ></textarea></label
+              ><label
+                >What OSCAR should know<textarea
+                  name="profile"
+                  rows="3"
+                  maxlength="3000"
+                ></textarea></label
+              ><label
+                >How OSCAR should respond<textarea
+                  name="instructions"
+                  rows="3"
+                  maxlength="3000"
+                ></textarea>
+              </label>
+              <label
+                >Style<select name="style">
+                  <option>Default</option>
+                  <option>Direct</option>
+                  <option>Professional</option>
+                  <option>Friendly</option>
+                  <option>Analytical</option>
+                </select></label
+              >
+              <label
+                >Response length<select name="length">
+                  <option>balanced</option>
+                  <option>concise</option>
+                  <option>detailed</option>
+                </select></label
+              >
+              <label
+                >Warmth<select name="warmth">
+                  <option>balanced</option>
+                  <option>reserved</option>
+                  <option>warm</option>
+                </select></label
+              ><label
+                >Enthusiasm<select name="enthusiasm">
+                  <option>restrained</option>
+                  <option>balanced</option>
+                  <option>enthusiastic</option>
+                </select></label
+              ><label
+                >Humor<select name="humor">
+                  <option>restrained</option>
+                  <option>none</option>
+                  <option>playful</option>
+                </select></label
+              ><label
+                >Expressiveness<select name="expressiveness">
+                  <option>balanced</option>
+                  <option>minimal</option>
+                  <option>expressive</option>
+                </select></label
+              ><label
+                >Emoji frequency<select name="emoji">
+                  <option>rare</option>
+                  <option>never</option>
+                  <option>occasionally</option>
+                </select></label
+              ><label
+                >Interactive responses<input
+                  name="rich_ui"
+                  type="checkbox"
+                  checked /></label
+              ><button class="outlined">Save preferences</button>
+              <p id="personalization-status" role="status"></p>
+            </form>
+          </section>
           <section
             class="setting-panel"
             id="settings-appearance"
@@ -343,7 +650,7 @@
             aria-labelledby="heading-model"
             hidden
           >
-            <h2 id="heading-model">Model</h2>
+            <h2 id="heading-model">Model & routing</h2>
             <div class="setting-row">
               <label for="model">Groq</label
               ><select id="model">
@@ -359,6 +666,24 @@
                 <option value="32000">Extended</option>
               </select>
             </div>
+            <h3>Manual fallback order</h3>
+            <p class="secondary">
+              Fallback happens before any answer text. A partial reply is never
+              combined with another model.
+            </p>
+            <div id="waterfall-list"></div>
+            <div class="inline-controls">
+              <select id="waterfall-model" aria-label="Fallback model"></select
+              ><button id="waterfall-add" class="outlined">Add fallback</button>
+            </div>
+            <label
+              >Per-answer spending ceiling (USD)<input
+                id="spending-ceiling"
+                type="number"
+                min="0"
+                step="any"
+                placeholder="No ceiling"
+            /></label>
           </section>
           <section
             class="setting-panel"
@@ -412,10 +737,34 @@
         ><button id="confirm-yes" class="primary">Confirm</button>
       </div>
     </dialog>
+    <dialog id="model-dialog">
+      <div class="inline-controls">
+        <h2>Choose intelligence</h2>
+        <button id="close-model-picker" aria-label="Close model picker">
+          ×
+        </button>
+      </div>
+      <label
+        >Provider<select id="picker-provider">
+          <option value="auto">Auto</option>
+        </select></label
+      ><label id="picker-model-label"
+        >Model<select id="picker-model"></select></label
+      ><label id="picker-reasoning-label"
+        >Reasoning<select id="picker-reasoning">
+          <option value="auto">Auto</option>
+        </select></label
+      >
+      <p id="picker-capabilities" class="secondary"></p>
+      <button id="apply-model" class="primary">Use selection</button>
+    </dialog>
     <div id="sidebar-tooltip" role="tooltip" hidden></div>
     <script src="../vendor/marked.umd.js"></script>
     <script src="../vendor/purify.min.js"></script>
     <script src="bridge.js"></script>
+    <script src="../vendor/rich.js"></script>
     <script src="app.js"></script>
+    <script src="rich.js"></script>
+    <script src="platform-ui.js"></script>
   </body>
 </html>

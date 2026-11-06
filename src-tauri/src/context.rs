@@ -56,8 +56,17 @@ impl Store {
         let begin = Instant::now();
         let now = chrono::Utc::now().timestamp_millis();
         let last: i64 = self.get("last_active", "0").parse().unwrap_or(0);
-        if last > 0 && now - last > 120 * 60000 {
+        let episode_tokens = self
+            .get("episode_tokens", "0")
+            .parse::<usize>()
+            .unwrap_or(0);
+        let threshold = self
+            .get("episode_threshold", "100000")
+            .parse::<usize>()
+            .unwrap_or(100000);
+        if (last > 0 && now - last > 120 * 60000) || episode_tokens >= threshold {
             self.compact(true)?;
+            self.set("episode_tokens", 0)?;
         }
         self.set("last_active", now)?;
         let historical=re(r"(?i)\b(before|previously|used to|last year|last month|in 20\d\d|earlier preference)\b").is_match(text);

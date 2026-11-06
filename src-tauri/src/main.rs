@@ -26,6 +26,32 @@ fn open_link(url: String, app: tauri::AppHandle) -> Result<(), String> {
         .map_err(|_| "Could not open link.".into())
 }
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("--extract-document") {
+        use std::io::Read;
+        let mut permit = [0u8; 1];
+        if std::io::stdin().read_exact(&mut permit).is_err() {
+            std::process::exit(2);
+        }
+        let result = (|| -> anyhow::Result<()> {
+            let path =
+                std::path::Path::new(args.get(2).ok_or_else(|| anyhow::anyhow!("Missing file"))?);
+            let name = args.get(3).ok_or_else(|| anyhow::anyhow!("Missing name"))?;
+            let bytes = std::fs::read(path)?;
+            if bytes.len() > oscar_core::documents::MAX_FILE {
+                anyhow::bail!("File limit");
+            }
+            let text = oscar_core::documents::extract(&bytes, name)?;
+            if text.len() > 12_000_000 {
+                anyhow::bail!("Text limit");
+            }
+            use std::io::Write;
+            std::io::stdout().write_all(text.as_bytes())?;
+            Ok(())
+        })();
+        std::process::exit(if result.is_ok() { 0 } else { 2 });
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(w) = app.get_webview_window("main") {
@@ -34,6 +60,7 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let root = std::env::var_os("OSCAR_CONFIG_DIR")
                 .map(PathBuf::from)

@@ -440,6 +440,15 @@ self.db.execute("INSERT OR IGNORE INTO working(source,quote) VALUES(?,?)",params
         Ok(())
     }
     pub fn compact(&self, force: bool) -> Result<()> {
+        let force = force
+            || self
+                .get("episode_tokens", "0")
+                .parse::<usize>()
+                .unwrap_or(0)
+                >= self
+                    .get("episode_threshold", "100000")
+                    .parse::<usize>()
+                    .unwrap_or(100000);
         for e in self.all(
             "SELECT * FROM summaries WHERE valid=0 ORDER BY id LIMIT 8",
             &[],

@@ -2,6 +2,12 @@
 
 Entries describe each stage at its date. Later entries supersede earlier behavior and limitations.
 
+## 2026-11-07 — Slice 02 (in progress)
+
+- Added cloud provider/model registries, protected Settings credentials and import of numbered key slots.
+- Connected routing, attachments, search, personalization and richer conversation controls for integrated testing.
+- Passed the first 44 Rust checks and read-only validation of six configured model providers and Tavily. Full Slice 02 acceptance remains in progress.
+
 ## 2026-11-07 — Hover sidebar
 
 - The sidebar now opens on hover and closes when you leave, with keyboard access too.

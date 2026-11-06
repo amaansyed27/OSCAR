@@ -233,6 +233,7 @@ function navigate(next) {
     if (name === next) b.setAttribute("aria-current", "page");
     else b.removeAttribute("aria-current");
   }
+  $("clear-chat").hidden = next !== "conversation";
   $("page-title").textContent = next[0].toUpperCase() + next.slice(1);
   document
     .querySelector(".workspace")
@@ -274,14 +275,21 @@ function markdown(text) {
   while (walker.nextNode()) nodes.push(walker.currentNode);
   for (const node of nodes) {
     if (node.parentElement.closest("pre,code,a")) continue;
-    const re = /\[#(\d+)\]/g;
+    const re = /\[#(\d+)\]|\[D:([a-f0-9-]{36}):(\d+)\]/g;
     let m,
       last = 0;
     const fragment = document.createDocumentFragment();
     while ((m = re.exec(node.textContent))) {
+      const match = [...m];
       fragment.append(
         node.textContent.slice(last, m.index),
-        button(m[0], () => showSource(Number(m[1])), "source-link"),
+        m[1]
+          ? button(m[0], () => showSource(Number(match[1])), "source-link")
+          : button(
+              "File · passage " + (Number(m[3]) + 1),
+              () => previewAttachment(match[2], Number(match[3])),
+              "source-link",
+            ),
       );
       last = re.lastIndex;
     }
@@ -336,6 +344,15 @@ function render() {
       body.className = "body";
       article.append(orb, body);
     }
+    for (const file of row.attachments || []) {
+      article.append(
+        button(
+          file.name,
+          () => previewAttachment(file.id),
+          "attachment-reference",
+        ),
+      );
+    }
     const meta = document.createElement("div");
     meta.className = "message-meta";
     const time = document.createElement("time");
@@ -355,6 +372,10 @@ function render() {
     }
     article.append(meta);
     $("messages").append(article);
+    if (row.role === "assistant" && row.status !== "pending")
+      requestAnimationFrame(() =>
+        enhanceRich(article.querySelector(".body"), row.id),
+      );
     if (arrivalIds.delete(row.id)) arrive(article, 5, 180);
   }
   if (follow) bottom();
@@ -362,7 +383,7 @@ function render() {
 }
 async function refresh(follow = false) {
   const old = $("chat-scroll").scrollTop;
-  rows = await api.history();
+  rows = await api.history({ visible: true });
   render();
   if (follow) bottom();
   else $("chat-scroll").scrollTop = old;
@@ -373,6 +394,7 @@ function setBusy(value) {
   $("stop").hidden = !value;
   $("thinking").hidden = !value;
   $("context-clear").disabled = value;
+  $("clear-chat").disabled = value;
 }
 function resizeInput() {
   const input = $("message"),
@@ -393,7 +415,8 @@ function resizeInput() {
   }
 }
 async function send(text, retryId) {
-  if (busy || !text.trim()) return;
+  if (busy || (!text.trim() && !attachedFiles.length)) return;
+  if (!text.trim()) text = "Please analyse the attached files.";
   if (new TextEncoder().encode(text).length > 24000) {
     notice("This message is too long. Shorten it before sending.");
     return;
@@ -417,7 +440,13 @@ async function send(text, retryId) {
     resizeInput();
   }
   try {
-    await api.send({ text, retryId });
+    await api.send({
+      text,
+      retryId,
+      attachments: attachedFiles.map((f) => f.id),
+    });
+    attachedFiles = [];
+    paintAttachments();
   } catch (e) {
     notice(e.message);
   } finally {
@@ -450,7 +479,7 @@ $("message").oninput = () => {
 $("older").onclick = async () => {
   const e = $("chat-scroll"),
     height = e.scrollHeight;
-  const older = await api.history({ before: rows[0].id });
+  const older = await api.history({ before: rows[0].id, visible: true });
   rows = [...older, ...rows].slice(0, 200);
   render();
   e.scrollTop = e.scrollHeight - height;
@@ -458,7 +487,7 @@ $("older").onclick = async () => {
   $("newer").hidden = false;
 };
 $("newer").onclick = async () => {
-  const recent = await api.history({ after: rows.at(-1).id });
+  const recent = await api.history({ after: rows.at(-1).id, visible: true });
   rows = [...rows, ...recent].slice(-200);
   render();
   $("newer").hidden = recent.length < 50;
