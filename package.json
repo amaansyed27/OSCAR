@@ -1,14 +1,18 @@
 {
   "name": "oscar",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "OSCAR Desktop conversation and local memory",
-  "main": "src/main.cjs",
   "scripts": {
-    "start": "electron .",
-    "test": "node --test tests/*.test.cjs",
-    "test:desktop": "node tests/desktop.cjs && node tests/desktop-review.cjs && node tests/desktop-recovery.cjs",
-    "test:performance": "node tests/performance.cjs",
-    "test:ui": "node tests/ui-motion.cjs"
+    "start": "tauri dev",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:desktop": "node scripts/build-ui.cjs && cargo build --manifest-path src-tauri/Cargo.toml && node tests/desktop.cjs && node tests/desktop-review.cjs && node tests/desktop-recovery.cjs",
+    "test:performance": "cargo run --release --manifest-path src-tauri/Cargo.toml --example performance",
+    "test:ui": "node scripts/build-ui.cjs && cargo build --manifest-path src-tauri/Cargo.toml && node tests/ui-motion.cjs",
+    "build": "tauri build",
+    "ui:build": "node scripts/build-ui.cjs",
+    "pretest": "node scripts/build-ui.cjs",
+    "pretest:performance": "node scripts/build-ui.cjs",
+    "test:release": "node tests/release.cjs"
   },
   "repository": {
     "type": "git",
@@ -24,12 +28,11 @@
   "homepage": "https://github.com/amaansyed27/oscar#readme",
   "dependencies": {
     "dompurify": "^3.4.17",
-    "electron": "^45.2.3",
-    "gpt-tokenizer": "^4.1.0",
     "marked": "^18.1.3"
   },
   "devDependencies": {
-    "@playwright/test": "^1.65.0"
+    "@playwright/test": "^1.65.0",
+    "@tauri-apps/cli": "^2.12.4"
   },
   "private": true
 }

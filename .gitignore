@@ -53,6 +53,7 @@ coverage/
 /target/
 **/target/
 /desktop/src-tauri/gen/
+/src-tauri/gen/
 
 # Android / Kotlin
 .kotlin/

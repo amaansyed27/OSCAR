@@ -1,4 +1,4 @@
-const { _electron: electron } = require("@playwright/test");
+const desktop = require("./desktop-driver.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const assert = require("node:assert/strict");
@@ -13,7 +13,7 @@ const log = [];
 async function launch() {
   const env = { ...process.env, OSCAR_DATA_DIR: data };
   delete env.ELECTRON_RUN_AS_NODE;
-  app = await electron.launch({ args: [root], env });
+  app = await desktop.launch({ args: [root], env });
   page = await app.firstWindow();
   page.on("pageerror", (e) => log.push({ uiError: e.message }));
   await page.locator("html[data-theme]").waitFor();
@@ -143,7 +143,7 @@ async function memoryContains(term) {
         "For this exercise, I need to finish OSCAR keyboard navigation before the prototype is ready. This is unfinished work. Keep it in history only, not personal memory.",
       );
       await app.close();
-      const { Store } = require("../src/store.cjs");
+      const { Store } = require("./fixtures.cjs");
       const s = new Store(path.join(data, "oscar.sqlite"));
       s.db.exec("BEGIN");
       for (let i = 0; i < 10000; i++)
@@ -152,7 +152,6 @@ async function memoryContains(term) {
           "Ordinary intervening message " + i + " about notes and planning.",
         );
       s.db.exec("COMMIT");
-      s.compact(true);
       s.clearContext();
       s.set("last_active", Date.now() - 121 * 60000);
       s.close();

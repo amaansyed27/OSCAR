@@ -1,4 +1,4 @@
-const { _electron: electron } = require("@playwright/test");
+const desktop = require("./desktop-driver.cjs");
 const path = require("node:path");
 const fs = require("node:fs");
 const assert = require("node:assert/strict");
@@ -10,7 +10,7 @@ const root = path.join(__dirname, "..");
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   const base = { ...process.env, OSCAR_DATA_DIR: data };
   delete base.ELECTRON_RUN_AS_NODE;
-  let app = await electron.launch({
+  let app = await desktop.launch({
     args: [root],
     env: {
       ...base,
@@ -36,7 +36,7 @@ const root = path.join(__dirname, "..");
     });
     await app.close();
     server.close();
-    app = await electron.launch({ args: [root], env: base });
+    app = await desktop.launch({ args: [root], env: base });
     page = await app.firstWindow();
     await page.locator("html[data-theme]").waitFor();
     await page.getByRole("button", { name: "Retry", exact: true }).click();

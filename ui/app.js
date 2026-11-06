@@ -555,6 +555,7 @@ async function showSource(id) {
 }
 let searchRevision = 0;
 async function search(more = false) {
+  $("more-results").disabled = true;
   const requestRevision = ++searchRevision,
     requestTab = tab;
   const input = $("search").value;
@@ -581,6 +582,7 @@ async function search(more = false) {
           sort: $("sort").value,
         });
   if (requestRevision !== searchRevision || requestTab !== tab) return;
+  $("more-results").disabled = false;
   searchRows = more ? [...searchRows, ...data] : data;
   const container = tab === "personal" ? $("memory-list") : $("results");
   container.replaceChildren();

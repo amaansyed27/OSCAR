@@ -1,4 +1,4 @@
-const { _electron: electron } = require("@playwright/test");
+const desktop = require("./desktop-driver.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const assert = require("node:assert/strict");
@@ -15,7 +15,7 @@ const results = process.env.OSCAR_REVIEW_RESUME
 async function launch() {
   const env = { ...process.env, OSCAR_DATA_DIR: data };
   delete env.ELECTRON_RUN_AS_NODE;
-  app = await electron.launch({ args: [root], env });
+  app = await desktop.launch({ args: [root], env });
   p = await app.firstWindow();
   p.on("pageerror", (e) => results.push({ uiError: e.message }));
   await p.locator("html[data-theme]").waitFor();
@@ -220,19 +220,15 @@ async function ask(text) {
     await p.locator("[data-page=settings]").click();
     await p.locator('[data-settings="appearance"]').click();
     await p.locator("#theme").selectOption("system");
-    await app.evaluate(
-      ({ nativeTheme }) => (nativeTheme.themeSource = "light"),
-    );
+    await p.emulateMedia({ colorScheme: "light" });
     await p.waitForFunction(
       () => document.documentElement.dataset.theme === "light",
     );
-    await app.evaluate(({ nativeTheme }) => (nativeTheme.themeSource = "dark"));
+    await p.emulateMedia({ colorScheme: "dark" });
     await p.waitForFunction(
       () => document.documentElement.dataset.theme === "dark",
     );
-    await app.evaluate(
-      ({ nativeTheme }) => (nativeTheme.themeSource = "system"),
-    );
+    await p.emulateMedia({ colorScheme: "no-preference" });
     await p.locator('[data-settings="appearance"]').click();
     await p.locator("#theme").selectOption("dark");
     results.push({

@@ -1,5 +1,5 @@
-const { _electron: electron } = require("@playwright/test");
-const { Store } = require("../src/store.cjs");
+const desktop = require("./desktop-driver.cjs");
+const { Store } = require("./fixtures.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const assert = require("node:assert/strict");
@@ -12,7 +12,7 @@ const errors = [];
 async function launch() {
   const env = { ...process.env, OSCAR_DATA_DIR: data };
   delete env.ELECTRON_RUN_AS_NODE;
-  app = await electron.launch({ args: [root], env });
+  app = await desktop.launch({ args: [root], env });
   p = await app.firstWindow();
   p.on("pageerror", (e) => errors.push(e.message));
   await p.locator("html[data-theme]").waitFor();

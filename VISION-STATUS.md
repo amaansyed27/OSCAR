@@ -173,3 +173,19 @@ Actual screenshots cover all three populated pages in both themes at 1536×900 a
 - [x] Subtle page/message arrivals, composer resizing and sidebar transitions, with reduced-motion support.
 
 **Verification:** `npm run test:ui` passed actual Electron interaction checks for sidebar placement/persistence, tooltips/Escape, inert profile, Settings search/keyboard navigation, rapid page changes, composer resizing, light/dark layouts at 1536×900, smaller 760×700 layout and reduced motion. Animation sampling confirmed intermediate sidebar widths; it is not a general performance benchmark. Screenshots are in ignored `.oscar/motion-evidence/`. Owner acceptance remains pending; LRA behavior is unchanged by this refinement.
+
+## Slice 01 — Tauri/Rust migration (2026-11-06)
+
+**The current runtime is Tauri 2 with a Rust backend. Earlier Electron evidence above is historical. Owner acceptance remains pending.**
+
+- [x] Kept the existing Conversation, Memories and categorized Settings interface, themes, fonts, navigation and expressive Orb. UI styles are unchanged.
+- [x] Replaced Electron IPC and the Node backend with Tauri commands, Tokio, rusqlite/SQLite FTS5, Reqwest/Rustls and Harmony token accounting. No Node sidecar or local HTTP service.
+- [x] Retained the existing `%APPDATA%/oscar/oscar.sqlite` location, schema and source IDs, with a first-open `oscar.before-tauri.sqlite` backup. Configuration stays external and its folder can be selected through `OSCAR_CONFIG_DIR`.
+- [x] Ported source-backed memory, revisions/exclusions, delayed-job protection, extractive compaction/working state, bounded retrieval, streaming, stopping, checkpoints and retry recovery.
+- [x] Removed retired Electron/backend files and dependencies. Rust tests replace the old Node backend tests; browser checks now exercise actual Tauri/WebView2 windows. A minimal SQLite fixture helper only seeds isolated test data.
+
+**Verification:** 23 Rust tests cover storage/migration, exact provenance, correction and historical facts, selective forgetting, delayed updates, compaction/inactivity/unfinished work, Unicode offsets, source passages, pagination/budgets, fragmented streaming, cancellation and provider errors. Clippy passed with warnings treated as errors. Actual desktop checks used real Groq for restart, preference learning/correction/forgetting, unrelated recall, older history across 10,000 intervening messages, source jumps, streaming/cancellation and saved partial replies, model selection, Markdown, theme persistence and network-failure/retry without duplicate user turns. Screenshots cover all three pages in both themes and smaller layouts. UI interaction checks also passed tooltips, rapid navigation, Settings search, sidebar persistence and reduced motion. The migration fixes pending-search pagination and converts native errors for the existing retry UI.
+
+**Measured local retrieval:** release-mode synthetic 100,001-record test, 20 warm samples. Specific lookup p95 retrieval 0.98 ms and packing 0.25 ms; broad query p95 retrieval 52.65 ms and packing 3.70 ms. The original source remained available under 8K/16K/32K budgets. These are local synthetic measurements, not an AI speed comparison or production-scale reliability guarantee.
+
+**Delivery/limits:** optimized Windows executable (19.71 MiB) and NSIS installer (5.82 MiB) built. `npm run test:release` verified the actual release executable, real streaming, restart, source-backed memory, local fonts and all six theme screenshots in `.oscar/tauri-evidence/`. `npm start` also launched the development app. WebView2 is required. Installer signing and owner install/uninstall acceptance are not complete. Existing lexical recall, fallible automatic extraction, provider quota and unencrypted local storage limitations remain. No new product features or framework performance claims are implied. Stop for owner review.

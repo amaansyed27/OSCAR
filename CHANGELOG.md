@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-06 — Tauri migration
+
+- Switched the desktop app to Tauri and Rust while keeping the same interface, themes and Orb.
+- Preserved conversation and memory data, with a backup before the first Tauri opening.
+- Kept real streamed replies, correction/forgetting, background learning, history search and retry recovery.
+- Removed Electron and the retired JavaScript backend; added a Windows release build and installer.
+- Verified Rust tests, live provider workflows and desktop layouts. The installer is unsigned and owner installation/visual approval remain pending. Recall and automatic learning still have their earlier limits.
+
 ## 2026-11-06 — Expressive Orb
 
 - Removed the empty-state sparkles. The yellow face now moves gently within the blue shell, opens its wink and occasionally blinks.
