@@ -121,4 +121,20 @@ For each completed checkbox record in a commit, issue or short feature note:
 
 Do **not** mark an entire capability complete solely because code was copied from [legacy OSCAR](https://github.com/Amaan27-Buzz/oscar), a test passed, or an installer was produced.
 
-**Current overall state: Vision defined; new-product implementation and acceptance not started.**
+## Slice 01 — Desktop conversation (2026-11-06)
+
+**Engineering verification passed; owner acceptance pending.** The broad capability checkboxes above remain unaccepted and include work beyond this slice.
+
+- [x] One persistent chronological conversation in a runnable Electron desktop window, with paged history and full-text search.
+- [x] Separate SQLite chat history, bounded active context and personal memory. Resetting working context retains history and memory; two-hour inactivity rollover is covered by a focused test.
+- [x] Real Groq `openai/gpt-oss-20b` responses using the existing local configuration. Credentials stayed unchanged and outside Git.
+- [x] Exact user-quote memories with source references, automatic preference learning/correction, manual inspection/correction and forgetting. Superseded/forgotten sources and derived replies are excluded from future context; original history remains readable.
+- [x] Canonical SVG Orb, local Neuhade/AZONIX typography, paper/graphite conversation layout and reduced-motion behavior. Adapted from the retained Mobile conversation composition; owner visual approval is pending.
+
+**Evidence:** `npm test` passes 8 focused checks. `npm run test:desktop` launches the real Windows Electron app and real provider with isolated data. It passed restart/continue, older recall, preference persistence/correction, manual correction, forget/restart and long-history checks. The final run held 3,017 messages; answer prompts ranged from 275 to 450 tokens, and older archive recall used 353 tokens. Screenshots and the run transcript are local under ignored `.oscar/evidence/`. Search/source viewing, context reset, reduced motion and a 640px layout were also checked in the actual app. A controlled transport failure produced a retryable user message; retry then used the real model without duplication. Oversized input stayed in the composer. The first post-inactivity message remained in active context. The archive code was introduced through the real conversation before the 3,000 synthetic intervening history records were added.
+
+**Limits:** Full-text retrieval needs overlapping words and can miss paraphrases. Automatic memory classification can miss or misclassify statements; saved content is an exact user quote, and manual controls remain available. Two provider requests per turn can encounter quota/network errors; the UI reports failures. Working context uses bounded excerpts, not generated summaries or a 250K-token buffer. Forget is retrieval suppression, not deletion of original chat history. Storage is local and unencrypted. No streaming, installer, sync or other product screens are included.
+
+Earlier verification caught a retired-model 404, citation formatting/source-ID issues and an intermittent memory-update warning. The supported model, explicit source references, citation normalization and strict extraction schema were applied before the final passing run. An initially overstrict check rejected a valid comparison of the new preference with the old one; the check now verifies the recommendation and the superseded-source rules separately.
+
+**Current overall state: Slice 01 is runnable and engineering-verified. Stop here for owner testing and approval.**

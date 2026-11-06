@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'"
+    />
+    <title>OSCAR</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="identity">
+        <img src="../assets/brand/oscar-orb.svg" alt="" class="orb" />
+        <h1>OSCAR</h1>
+      </div>
+      <nav aria-label="Conversation controls">
+        <button id="search-open">Search</button
+        ><button id="memory-open">Memory <span id="memory-count"></span></button
+        ><button
+          id="context-clear"
+          title="Clear working context; keep history and personal memory"
+        >
+          Reset context
+        </button>
+      </nav>
+    </header>
+    <main>
+      <section id="search-panel" hidden aria-label="Search conversation">
+        <form id="search-form">
+          <label for="search">Search conversation</label>
+          <div class="search-row">
+            <input id="search" type="search" autocomplete="off" /><button>
+              Find</button
+            ><button type="button" id="search-close">Close</button>
+          </div>
+        </form>
+        <p id="search-status" role="status"></p>
+        <div id="results"></div>
+      </section>
+      <section id="conversation" aria-label="Conversation">
+        <div id="welcome">
+          <img class="orb" src="../assets/brand/oscar-orb.svg" alt="OSCAR" />
+          <h2>What’s on your mind?</h2>
+        </div>
+        <button id="older" hidden>Earlier messages</button>
+        <div id="messages"></div>
+        <div id="thinking" hidden role="status">
+          <img
+            class="orb"
+            src="../assets/brand/oscar-orb.svg"
+            alt=""
+          />Thinking<span class="dots">…</span>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <div id="notice" role="status" hidden></div>
+      <form id="composer">
+        <label class="sr-only" for="message">Write to OSCAR</label
+        ><textarea
+          id="message"
+          rows="1"
+          placeholder="Write to OSCAR"
+          maxlength="12000"
+        ></textarea
+        ><button id="send" aria-label="Send message" title="Send message">
+          ↑
+        </button>
+      </form>
+      <div class="connection">
+        <span id="model"></span><span id="send-state"></span>
+      </div>
+    </footer>
+    <dialog id="memory-dialog">
+      <div class="dialog-heading">
+        <h2>Memory</h2>
+        <button id="memory-close" aria-label="Close memory">✕</button>
+      </div>
+      <p id="memory-notice" role="status"></p>
+      <div id="memory-list"></div>
+      <form id="memory-edit" hidden>
+        <label for="memory-text">Correct memory</label
+        ><textarea id="memory-text" maxlength="600" rows="4"></textarea>
+        <div class="actions">
+          <button id="edit-cancel" type="button">Cancel</button
+          ><button>Save correction</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="source-dialog">
+      <div class="dialog-heading">
+        <h2 id="source-title">Source</h2>
+        <button id="source-close" aria-label="Close source">✕</button>
+      </div>
+      <div id="source-content"></div>
+      <button id="save-memory">Remember this</button>
+    </dialog>
+    <dialog id="confirm-dialog">
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-text"></p>
+      <div class="actions">
+        <button id="confirm-cancel">Cancel</button
+        ><button id="confirm-yes">Confirm</button>
+      </div>
+    </dialog>
+    <script src="../node_modules/marked/lib/marked.umd.js"></script>
+    <script src="../node_modules/dompurify/dist/purify.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
