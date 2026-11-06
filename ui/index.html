@@ -71,8 +71,16 @@
         <main id="chat-scroll" aria-label="Conversation">
           <div class="chat-column">
             <div id="welcome" hidden>
-              <img src="../assets/brand/oscar-orb.svg" alt="OSCAR" />
-              <h2>What’s on your mind?</h2>
+              <div class="welcome-orb">
+                <img src="../assets/brand/oscar-orb.svg" alt="OSCAR" /><span
+                  aria-hidden="true"
+                  class="spark spark-one"
+                  >&#10022;</span
+                ><span aria-hidden="true" class="spark spark-two"
+                  >&#10023;</span
+                >
+              </div>
+              <h2>Big idea or tiny thought?</h2>
             </div>
             <button id="older" class="subtle" hidden>Earlier messages</button>
             <div id="messages"></div>

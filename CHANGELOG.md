@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-06 — Empty conversation
+
+- Centered the first-message greeting and composer, with a playful Orb and small spark accents.
+- Kept the normal message layout after conversation begins. Checked both themes at desktop and smaller sizes; owner review is pending.
+
 ## 2026-11-06 — Navigation and motion
 
 - Added an expandable icon sidebar with hover and keyboard-focus tooltips. Settings now sits at the bottom beside an inactive profile icon.

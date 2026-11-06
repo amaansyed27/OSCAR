@@ -277,6 +277,10 @@ function render() {
     follow = nearBottom();
   $("messages").replaceChildren();
   $("welcome").hidden = rows.length > 0;
+  $("page-conversation").classList.toggle(
+    "empty-conversation",
+    rows.length === 0,
+  );
   $("older").hidden = rows.length < 50 && (!rows[0] || rows[0].id === 1);
   for (const row of rows) {
     if (
