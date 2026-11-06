@@ -2,18 +2,24 @@ const { contextBridge, ipcRenderer } = require("electron");
 const names = [
   "status",
   "history",
+  "around",
   "source",
   "memories",
   "send",
+  "cancel",
   "clear",
   "forget",
   "edit",
+  "settings",
+  "setSettings",
+  "systemTheme",
   "draft",
   "saveDraft",
+  "maintenance",
+  "diagnostics",
 ];
-contextBridge.exposeInMainWorld(
-  "oscar",
-  Object.fromEntries(
+contextBridge.exposeInMainWorld("oscar", {
+  ...Object.fromEntries(
     names.map((name) => [
       name,
       async (arg) => {
@@ -23,4 +29,9 @@ contextBridge.exposeInMainWorld(
       },
     ]),
   ),
-);
+  onEvent: (callback) => {
+    const listener = (_event, event) => callback(event);
+    ipcRenderer.on("oscar:event", listener);
+    return () => ipcRenderer.removeListener("oscar:event", listener);
+  },
+});

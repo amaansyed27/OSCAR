@@ -123,7 +123,7 @@ Do **not** mark an entire capability complete solely because code was copied fro
 
 ## Slice 01 — Desktop conversation (2026-11-06)
 
-**Engineering verification passed; owner acceptance pending.** The broad capability checkboxes above remain unaccepted and include work beyond this slice.
+**Initial engineering checks passed; the owner rejected the initial UI.** This historical record is superseded by the revision below. The broad capability checkboxes above remain unaccepted and include work beyond this slice.
 
 - [x] One persistent chronological conversation in a runnable Electron desktop window, with paged history and full-text search.
 - [x] Separate SQLite chat history, bounded active context and personal memory. Resetting working context retains history and memory; two-hour inactivity rollover is covered by a focused test.
@@ -137,4 +137,31 @@ Do **not** mark an entire capability complete solely because code was copied fro
 
 Earlier verification caught a retired-model 404, citation formatting/source-ID issues and an intermittent memory-update warning. The supported model, explicit source references, citation normalization and strict extraction schema were applied before the final passing run. An initially overstrict check rejected a valid comparison of the new preference with the old one; the check now verifies the recommendation and the superseded-source rules separately.
 
-**Current overall state: Slice 01 is runnable and engineering-verified. Stop here for owner testing and approval.**
+## Slice 01 revision — Simple Desktop UI and LRA (2026-11-06)
+
+**Engineering verification passed; owner visual and product acceptance pending.** This revises the existing Electron application and preserves its original database and credentials.
+
+- [x] Exactly three pages: Conversation, Memories and Settings. Narrow responsive navigation; canonical SVG Orb; local Neuhade, identity-only AZONIX and DM Mono for code.
+- [x] Neutral light/dark themes, System default and persisted selection. Theme controls and context reset exist only in Settings.
+- [x] Real streamed responses, stopping, partial-response recovery, retry without duplicated user turns, Markdown/code/tables and preserved reading position.
+- [x] Dedicated searchable personal memory and complete chronological history, date/relevance filtering, indexed pagination, surrounding messages and jumps to the original conversation.
+- [x] Existing SQLite data backed up before schema migration. Database/retrieval/model work runs in an application-owned worker thread. Original messages remain intact.
+- [x] One foreground model request for ordinary turns; explicit memory changes may need a second request. Ordinary extraction runs in a persistent maintenance queue. Both exposed GPT-OSS models were exercised against real Groq.
+- [x] Four logical layers: original history, bounded active context, source-linked extractive episode summaries/working state, and scoped personal memory. GPT-OSS Harmony text counts plus conservative framing/output reserves; Compact/Balanced/Extended input budgets.
+- [x] Lexical passages with neighbours, entity/topic aliases, dated current/superseded memories and exact source references. No vector service or embeddings were added.
+- [x] More precise forgetting: value/source exclusions and derived reply spans instead of broad recursive suppression. Original archive remains human-readable. Revision and source-order checks reject stale updates, while unrelated queued facts remain eligible. Redacted clauses are removed from answer context.
+- [x] Compaction retains unfinished work and original source references. Explicit matching completion statements close working notes; ambiguous completion is not a task-execution engine.
+
+**Tests executed:** `npm test` passes 27 focused checks, including legacy migration/backup, partial/interrupted recovery, stale job rejection, unrelated recall after forgetting, source-linked paraphrase exclusion, exact-quote provenance, current/historical preferences, long-message passages, relevance pagination, token limits and unfinished-work preservation.
+
+`npm run test:desktop` runs the actual Windows Electron application with isolated data and real Groq calls. It verifies restart continuity; committed preference learning/correction; historical and paraphrased recall; forgetting while keeping an unrelated active memory; archive recall and unfinished work across 10,000 synthetic intervening messages; actual stream deltas; cancellation and saved partial text after restart; real model switching; source search/jump; light/dark/System themes; persisted settings; and a renderer that continues painting while the backend searches. The transport test deliberately closes a loopback connection, then restarts and retries against real Groq with one original user turn.
+
+Actual screenshots cover all three populated pages in both themes at 1536×900 and smaller 760×700 layouts. Local fonts were verified loaded, including DM Mono for code. Long Markdown, code and tables, focus, reduced motion, scrolling and meaningful confirmation controls were checked. Light/dark body, secondary-text and control-boundary contrast checks passed; all three pages also passed a 200% zoom/reflow check at a 760px window. Full screen-reader conformance was not audited. These are runtime screenshots, not generated mockups. Receipts and images are under ignored `.oscar/revision-evidence/`.
+
+**Observed performance:** `npm run test:performance` measures 100,001 synthetic records under a warm cache. Latest p95 local retrieval was 1.02 ms for a specific query and 116.71 ms for a broad query; packing was 0.23 ms and 8.36 ms respectively. The 8K/16K/32K probe retained the original historical source at every budget and carried 5/11/22 recent long messages. Provider timing is separate in per-turn metrics; quota cooldowns are not included in these local measurements. These results are not production-scale recall-quality proof.
+
+**Failures retained and corrected during verification:** initial tests encoded the old broad-suppression/inactivity behavior; a background-memory test wait returned too early; a search pagination assertion ran before its asynchronous result; an initial cancellation check waited for stream text after a provider failure. Those checks were corrected and rerun. Groq rate limits occurred in real runs and were recovered by retrying the same turn after cooldown. A redaction marker appeared in an early answer; answer-context filtering and a focused real-provider abstention check corrected that presentation.
+
+**Remaining limits:** retrieval and redaction are lexical, with recorded source/span dependencies; broad semantic recall and uncited legacy paraphrases are not comprehensively verified. Automatic memory classification and deterministic working-note extraction can miss or misinterpret information. Summaries are extractive source projections, not a complete semantic world model. Background learning can be delayed or fail under quota/network limits; manual source-based memory controls remain available. Storage and retained backups are unencrypted. Forgetting is not secure erasure of original chat, backups or provider data. No export/delete UI, installer, voice, Workers, Automations, sync or other product screens are included.
+
+**Current overall state: Slice 01 revision is runnable and engineering-verified. Stop here for owner review; no next feature is authorized by this status.**

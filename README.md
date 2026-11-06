@@ -28,25 +28,32 @@ It reads `GROQ_API_KEY` or `GROQ_API_KEY_1` from the existing local `.env` / `.e
 
 ## Conversation and memory
 
-- Enter sends; Shift+Enter adds a line. Failed or interrupted messages have Retry.
-- Search and Earlier messages recover the single chronological conversation.
-- Memory opens personal statements with their sources, correction and forgetting controls. A message's source button also offers Remember this.
-- Reset context keeps history and memory. After two hours of inactivity the working window resets invisibly; relevant older excerpts can still be retrieved.
-- Corrections replace the active memory. Forget removes it from retrieval and suppresses its source versions and replies derived from them. **Original chat history remains readable and searchable.** Forget is not a secure erasure of the conversation or SQLite file.
+- **Conversation:** one saved conversation, streamed replies, Stop and Retry. Enter sends; Shift+Enter adds a line. Earlier messages load incrementally.
+- **Memories:** search personal statements, inspect their sources, correct or forget them. Conversation history searches the complete archive with dates, relevance sorting, surrounding messages and a jump to the original position.
+- **Settings:** System/Light/Dark appearance, Groq model selection, automatic learning, context size and working-context reset. Appearance and model choices persist.
 
-History, personal memory and draft live in `%APPDATA%\oscar\oscar.sqlite`, separate from source and credentials. Close OSCAR before backing up its data folder. `OSCAR_DATA_DIR` can select a separate data folder for testing. Data is local and unencrypted; selected conversation excerpts and memory statements are sent to Groq to answer. Keys stay in the main process.
+Normal turns use one foreground answer request. Ordinary memory learning runs afterwards in a durable background queue; explicit corrections and forgetting may need an additional request before answering. A reply's acknowledgement is not proof that background learning has committed: inspect Memories. Original user quotes are the memory evidence.
 
-SQLite is the only store. Full-text search retrieves matching older excerpts; recent messages and relevant personal statements form a bounded working context. Automatic memory keeps exact user quotes rather than model-written facts. It can still miss or misclassify a statement; inspect and correct it in Memory. Each message uses one extraction request and one answer request.
+History, working state, source-linked extractive episode summaries, personal memory and draft live in `%APPDATA%\oscar\oscar.sqlite`. They stay independent of the provider. The migration makes a `before-revision` SQLite backup beside an existing database before updating its schema. Close OSCAR before manually copying its data folder. `OSCAR_DATA_DIR` selects an isolated folder for testing.
+
+Relevant original passages, neighbouring messages, working state and selected memories are assembled locally. Balanced targets 16K input tokens; Compact and Extended target 8K and 32K. GPT-OSS text uses Harmony token accounting with a conservative framing margin and a separate 4K output/reasoning reserve. Actual provider usage is recorded. Inactivity can compact an episode without losing unfinished work. Summaries retain original message references and never replace the archive.
+
+Corrections supersede old versions; explicit historical questions can recover dated prior statements. Forgetting excludes the recorded values and linked reply passages and invalidates derived summaries. Revision checks prevent delayed learning from restoring an outdated or forgotten fact. **Original chat remains readable and searchable.** Forget is not secure erasure of chat, SQLite pages, backups or provider-held data. Deleting original conversation data and export are not implemented.
+
+The database is local and unencrypted. Selected excerpts and memories are sent to Groq. Keys remain in the backend worker and are never exposed to the renderer. Provider quotas and billing remain controlled by Groq. Automatic classification and lexical retrieval can miss information or interpret it incorrectly; use the source, correction and forget controls. Legacy uncited paraphrases and broad semantic recall are not comprehensively verified.
 
 ## Verification
 
 ```powershell
 npm test
 npm run test:desktop
+npm run test:performance
 ```
 
-The desktop check launches the actual Electron app with isolated data and calls the real configured model. It uses provider quota and demonstrates restart continuity, preference learning/correction, manual correction, forgetting after restart, search and older-history recall across 3,000 intervening messages. Local screenshots and results go to ignored `.oscar/evidence/`.
+The desktop suite launches real Electron windows with isolated test data and calls the real provider. It uses quota. It covers persistence, streamed answers/cancellation, current and historical preferences, unrelated recall after forgetting, search/jump, model selection, themes, large history and error recovery. The transport-error test uses a loopback server that closes the connection, then retries against real Groq. Its optional `OSCAR_GROQ_ENDPOINT` override accepts HTTP loopback only; it is not used for normal launches.
 
-Slice 01 is ready for owner testing. Retrieval is lexical rather than semantic, answers are not streamed, and this is a development launch rather than a signed installer. No voice, Workers, Automations, onboarding, device sync or other screens are included. See [VISION-STATUS.md](VISION-STATUS.md) for verified scope and pending owner acceptance.
+Actual application screenshots, transcripts and measurements go to ignored `.oscar/revision-evidence/`. Performance probes separate local retrieval/packing from provider latency; their synthetic results do not establish production-scale memory reliability.
+
+Slice 01 revision is ready for owner review. No Workers, Automations, voice, onboarding, device sync or installer are included. See [VISION-STATUS.md](VISION-STATUS.md) for verified scope and remaining limits.
 
 Dawnlight Labs · India

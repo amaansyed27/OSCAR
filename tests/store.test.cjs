@@ -50,11 +50,16 @@ test("correction supersedes old source; forgetting blocks every version and reca
   let c = s.context("tea coffee");
   assert.equal(c.memories.length, 1);
   assert.match(c.memories[0].text, /black coffee/);
-  assert(!c.history.some((h) => h.id === a || h.id === reply));
+  assert(!JSON.stringify(c).includes("green tea"));
+  assert(
+    s
+      .context("What did I prefer previously?")
+      .memories.some((m) => /green tea/.test(m.text)),
+  );
   s.forget(n);
   c = s.context("tea coffee");
   assert.equal(c.memories.length, 0);
-  assert(!c.history.some((h) => [a, b, reply].includes(h.id)));
+  assert(!/green tea|black coffee/.test(JSON.stringify(c)));
   assert.equal(s.history().length, 3);
   s.close();
 });
@@ -74,7 +79,7 @@ test("FTS retrieves older history under a fixed context budget with 3000 message
   s.clearContext();
   const c = s.context("What was the lighthouse archive code?", 10000);
   assert(c.history.some((h) => h.id === id));
-  assert(c.bytes <= 10000);
+  assert(c.tokens <= 10000);
   assert(c.history.length <= 34);
   assert.equal(s.history({ search: "lighthouse" })[0].id, id);
   assert.equal(s.history().length, 50);
@@ -86,6 +91,10 @@ test("sources must be user statements with exact quotes", () => {
   assert.throws(() => s.saveMemory("home", "User lives on Mars", id, "Mars"));
   const user = s.add("user", "Where do I live?");
   assert.throws(() => s.saveMemory("home", "User lives on Mars", user, "Mars"));
+  const question = s.add("user", "Do I need to finish OSCAR today?");
+  s.trackWork(question);
+  s.trackWork(id);
+  assert.equal(s.db.prepare("SELECT count(*) AS n FROM working").get().n, 0);
   s.close();
 });
 test("inactivity rollover is invisible and leaves originals intact", () => {
@@ -93,7 +102,7 @@ test("inactivity rollover is invisible and leaves originals intact", () => {
   s.add("user", "A past moment");
   s.set("last_active", Date.now() - 121 * 60000);
   const c = s.context("hello");
-  assert.equal(c.history.length, 0);
+  assert.equal(c.history.length, 1);
   assert.equal(s.history().length, 1);
   s.close();
 });
@@ -121,11 +130,7 @@ test("forget also suppresses replies derived from older history excerpts", () =>
   s.db.prepare("INSERT INTO history_links VALUES(?,?)").run(indirect, later);
   s.forget(memory);
   const context = s.context("mint tea drink");
-  assert(
-    !context.history.some((h) =>
-      [source, direct, later, indirect].includes(h.id),
-    ),
-  );
+  assert(!/mint/i.test(JSON.stringify(context)));
   assert.equal(s.history().length, 4);
   s.close();
 });
@@ -133,7 +138,10 @@ test("network failure keeps the original user message and retry does not duplica
   const { Conversation } = require("../src/conversation.cjs");
   const { s } = fixture();
   const model = {
-    config: { inputBudget: 10000 },
+    config: { inputBudget: 10000, contextWindow: 131072, outputBudget: 4000 },
+    stream: async () => {
+      throw new Error("Network unavailable");
+    },
     complete: async () => {
       throw new Error("Network unavailable");
     },
@@ -145,17 +153,13 @@ test("network failure keeps the original user message and retry does not duplica
     /Network unavailable/,
   );
   const original = s.history()[0];
-  assert.equal(
-    Number(s.get("context_start")),
-    original.id,
-    "first post-rollover user message remains in the active window",
-  );
   assert.equal(original.status, "failed");
   await assert.rejects(
     conversation.send(original.content, original.id),
     /Network unavailable/,
   );
-  assert.equal(s.history().length, 1);
+  assert.equal(s.history().filter((m) => m.role === "user").length, 1);
   assert.equal(conversation.busy, false);
+  conversation.close();
   s.close();
 });

@@ -11,99 +11,193 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <header>
+    <aside class="sidebar">
       <div class="identity">
-        <img src="../assets/brand/oscar-orb.svg" alt="" class="orb" />
-        <h1>OSCAR</h1>
+        <img src="../assets/brand/oscar-orb.svg" alt="" /><span>OSCAR</span>
       </div>
-      <nav aria-label="Conversation controls">
-        <button id="search-open">Search</button
-        ><button id="memory-open">Memory <span id="memory-count"></span></button
-        ><button
-          id="context-clear"
-          title="Clear working context; keep history and personal memory"
-        >
-          Reset context
+      <nav aria-label="Main navigation">
+        <button data-page="conversation" aria-current="page">
+          <svg viewBox="0 0 24 24"><path d="M5 4h14v12H9l-4 4z" /></svg
+          ><span>Conversation</span></button
+        ><button data-page="memories">
+          <svg viewBox="0 0 24 24">
+            <path d="m12 3 9 5-9 5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5" /></svg
+          ><span>Memories</span></button
+        ><button data-page="settings">
+          <svg viewBox="0 0 24 24">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+            <circle cx="9" cy="6" r="2" />
+            <circle cx="15" cy="12" r="2" />
+            <circle cx="9" cy="18" r="2" /></svg
+          ><span>Settings</span>
         </button>
       </nav>
-    </header>
-    <main>
-      <section id="search-panel" hidden aria-label="Search conversation">
-        <form id="search-form">
-          <label for="search">Search conversation</label>
-          <div class="search-row">
-            <input id="search" type="search" autocomplete="off" /><button>
-              Find</button
-            ><button type="button" id="search-close">Close</button>
-          </div>
-        </form>
-        <p id="search-status" role="status"></p>
-        <div id="results"></div>
-      </section>
-      <section id="conversation" aria-label="Conversation">
-        <div id="welcome">
-          <img class="orb" src="../assets/brand/oscar-orb.svg" alt="OSCAR" />
-          <h2>What’s on your mind?</h2>
-        </div>
-        <button id="older" hidden>Earlier messages</button>
-        <div id="messages"></div>
-        <div id="thinking" hidden role="status">
-          <img
-            class="orb"
-            src="../assets/brand/oscar-orb.svg"
-            alt=""
-          />Thinking<span class="dots">…</span>
-        </div>
-      </section>
-    </main>
-    <footer>
+      <button
+        id="collapse"
+        aria-label="Collapse navigation"
+        title="Collapse navigation"
+      >
+        ‹
+      </button>
+    </aside>
+    <div class="workspace">
+      <header><h1 id="page-title">Conversation</h1></header>
       <div id="notice" role="status" hidden></div>
-      <form id="composer">
-        <label class="sr-only" for="message">Write to OSCAR</label
-        ><textarea
-          id="message"
-          rows="1"
-          placeholder="Write to OSCAR"
-          maxlength="12000"
-        ></textarea
-        ><button id="send" aria-label="Send message" title="Send message">
-          ↑
-        </button>
-      </form>
-      <div class="connection">
-        <span id="model"></span><span id="send-state"></span>
-      </div>
-    </footer>
-    <dialog id="memory-dialog">
-      <div class="dialog-heading">
-        <h2>Memory</h2>
-        <button id="memory-close" aria-label="Close memory">✕</button>
-      </div>
-      <p id="memory-notice" role="status"></p>
-      <div id="memory-list"></div>
-      <form id="memory-edit" hidden>
-        <label for="memory-text">Correct memory</label
-        ><textarea id="memory-text" maxlength="600" rows="4"></textarea>
-        <div class="actions">
-          <button id="edit-cancel" type="button">Cancel</button
-          ><button>Save correction</button>
+      <section id="page-conversation" class="page">
+        <main id="chat-scroll" aria-label="Conversation">
+          <div class="chat-column">
+            <div id="welcome" hidden>
+              <img src="../assets/brand/oscar-orb.svg" alt="OSCAR" />
+              <h2>What’s on your mind?</h2>
+            </div>
+            <button id="older" class="subtle" hidden>Earlier messages</button>
+            <div id="messages"></div>
+            <button id="newer" class="subtle" hidden>Later messages</button>
+            <div id="thinking" role="status" hidden>
+              Responding<span>…</span>
+            </div>
+          </div>
+        </main>
+        <div class="composer-wrap">
+          <button id="present" hidden>Return to present ↓</button>
+          <form id="composer">
+            <label class="sr-only" for="message">Write to OSCAR</label
+            ><textarea
+              id="message"
+              rows="1"
+              placeholder="Write to OSCAR"
+              maxlength="24000"
+            ></textarea
+            ><button id="send" aria-label="Send message" title="Send message">
+              ↑</button
+            ><button
+              id="stop"
+              type="button"
+              aria-label="Stop response"
+              title="Stop response"
+              hidden
+            >
+              ■
+            </button>
+          </form>
         </div>
-      </form>
-    </dialog>
-    <dialog id="source-dialog">
-      <div class="dialog-heading">
-        <h2 id="source-title">Source</h2>
-        <button id="source-close" aria-label="Close source">✕</button>
-      </div>
-      <div id="source-content"></div>
-      <button id="save-memory">Remember this</button>
-    </dialog>
+      </section>
+      <section id="page-memories" class="page scroll-page" hidden>
+        <div class="page-inner memory-page">
+          <div class="tabs" role="tablist" aria-label="Memory views">
+            <button id="personal-tab" role="tab" aria-selected="true">
+              Personal memory</button
+            ><button id="history-tab" role="tab" aria-selected="false">
+              Conversation history
+            </button>
+          </div>
+          <form id="search-form" class="search-tools">
+            <label class="sr-only" for="search"
+              >Search memories or conversation</label
+            ><input
+              id="search"
+              type="search"
+              placeholder="Search personal memory"
+              autocomplete="off"
+            /><button>Search</button>
+            <div id="history-filters" hidden>
+              <label>From <input id="from" type="date" /></label
+              ><label>To <input id="to" type="date" /></label
+              ><label class="sr-only" for="sort">Sort search results</label
+              ><select id="sort">
+                <option value="relevance">Relevance</option>
+                <option value="date">Date</option>
+              </select>
+            </div>
+          </form>
+          <div class="memory-layout">
+            <div>
+              <p id="result-status" class="secondary" role="status"></p>
+              <div id="memory-list"></div>
+              <div id="results" hidden></div>
+              <button id="more-results" class="subtle" hidden>
+                More results
+              </button>
+            </div>
+            <section id="detail" hidden aria-label="Selected memory or source">
+              <div id="detail-body"></div>
+              <form id="memory-edit" hidden>
+                <label for="memory-text">Correct memory</label
+                ><textarea id="memory-text" maxlength="600" rows="4"></textarea>
+                <div class="actions">
+                  <button type="button" id="edit-cancel">Cancel</button
+                  ><button class="primary">Save correction</button>
+                </div>
+              </form>
+              <div id="detail-actions" class="actions"></div>
+              <p id="memory-notice" class="secondary" role="status"></p>
+            </section>
+          </div>
+        </div>
+      </section>
+      <section id="page-settings" class="page scroll-page" hidden>
+        <div class="page-inner settings">
+          <h2>Appearance</h2>
+          <div class="setting-row">
+            <label for="theme">Theme</label
+            ><select id="theme">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+          <h2>Model</h2>
+          <div class="setting-row">
+            <label for="model">Groq</label
+            ><select id="model">
+              <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
+              <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label for="input-budget">Conversation context</label
+            ><select id="input-budget">
+              <option value="8000">Compact</option>
+              <option value="16000">Balanced</option>
+              <option value="32000">Extended</option>
+            </select>
+          </div>
+          <h2>Memory</h2>
+          <div class="setting-row">
+            <label for="learn">Learn personal preferences</label
+            ><input id="learn" type="checkbox" role="switch" />
+          </div>
+          <div class="setting-row">
+            <div>
+              Working context
+              <p class="secondary">
+                Reset recent context and working state. Keep history and
+                personal memory.
+              </p>
+            </div>
+            <button id="context-clear" class="outlined">Reset</button>
+          </div>
+          <h2>Data & privacy</h2>
+          <p>
+            Your conversation is stored on this device. Relevant excerpts and
+            memories are sent to Groq to answer.
+          </p>
+          <p class="secondary">
+            Local data is not encrypted. Forgetting a personal memory stops its
+            retrieval; original conversation records remain readable.
+          </p>
+          <button id="browse-history" class="text-button">
+            Browse conversation history →
+          </button>
+        </div>
+      </section>
+    </div>
     <dialog id="confirm-dialog">
       <h2 id="confirm-title"></h2>
       <p id="confirm-text"></p>
       <div class="actions">
         <button id="confirm-cancel">Cancel</button
-        ><button id="confirm-yes">Confirm</button>
+        ><button id="confirm-yes" class="primary">Confirm</button>
       </div>
     </dialog>
     <script src="../node_modules/marked/lib/marked.umd.js"></script>

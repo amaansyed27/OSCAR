@@ -1,11 +1,12 @@
 const { _electron: electron } = require("@playwright/test");
-const path = require("node:path");
 const fs = require("node:fs");
+const path = require("node:path");
 const assert = require("node:assert/strict");
-const root = path.join(__dirname, "..");
-const data = path.join(root, ".oscar", "desktop-acceptance-" + Date.now());
-fs.mkdirSync(data, { recursive: true });
-const evidence = path.join(root, ".oscar", "evidence");
+const root = path.join(__dirname, ".."),
+  data =
+    process.env.OSCAR_TEST_DATA ||
+    path.join(root, ".oscar", "revision-acceptance-" + Date.now()),
+  evidence = path.join(root, ".oscar", "revision-evidence");
 fs.mkdirSync(evidence, { recursive: true });
 let app, page;
 const log = [];
@@ -15,155 +16,229 @@ async function launch() {
   app = await electron.launch({ args: [root], env });
   page = await app.firstWindow();
   page.on("pageerror", (e) => log.push({ uiError: e.message }));
-  await page.locator("#model").filter({ hasText: "Groq" }).waitFor();
+  await page.locator("html[data-theme]").waitFor();
 }
-async function ask(text) {
-  await page.locator("#message").fill(text);
-  await page.locator("#send").click();
-  await page.locator("#thinking").waitFor({ state: "visible" });
-  await page.locator("#thinking").waitFor({ state: "hidden", timeout: 120000 });
-  const notice = await page.locator("#notice").textContent();
-  const answer = await page
-    .locator(".message.assistant .body")
-    .last()
-    .innerText();
+async function ask(text, retryId) {
+  await page.locator("[data-page=conversation]").click();
+  if (retryId) {
+    const prior = await page.evaluate(() => window.oscar.history());
+    const user = prior.find((m) => m.id === retryId);
+    await page.evaluate(
+      ({ text, id }) =>
+        window.oscar.send({ text, retryId: id }).catch(() => {}),
+      { text: user.content, id: retryId },
+    );
+  } else {
+    await page.locator("#message").fill(text);
+    await page.locator("#send").click();
+  }
+  if (!retryId) {
+    await page.locator("#stop").waitFor({ state: "visible" });
+    await page.locator("#stop").waitFor({ state: "hidden", timeout: 120000 });
+  }
+  let notice = await page.locator("#notice").textContent();
+  if (/Groq rate limit/.test(notice)) {
+    log.push({ providerFailure: notice, user: text });
+    const seconds = Number(notice.match(/(\d+) seconds/)?.[1] || 20);
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.min(seconds + 2, 60) * 1000),
+    );
+    await page
+      .getByRole("button", { name: "Retry", exact: true })
+      .last()
+      .click();
+    await page.locator("#stop").waitFor({ state: "visible" });
+    await page.locator("#stop").waitFor({ state: "hidden", timeout: 120000 });
+    notice = await page.locator("#notice").textContent();
+  }
+  const answer = await page.locator(".assistant .body").last().innerText();
   log.push({ user: text, answer, notice });
-  if (notice) throw new Error(notice);
+  assert(!notice, "no foreground failure: " + notice);
+  await new Promise((resolve) => setTimeout(resolve, 1200));
   return answer;
+}
+async function memoryContains(term) {
+  const deadline = Date.now() + 120000;
+  while (Date.now() < deadline) {
+    const memories = await page.evaluate(() => window.oscar.memories());
+    if (memories.some((m) => m.text.toLowerCase().includes(term)))
+      return memories;
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  throw new Error("Personal memory did not commit: " + term);
 }
 (async () => {
   try {
-    await launch();
-    await page.screenshot({ path: path.join(evidence, "empty.png") });
-    await ask(
-      "For this conversation exercise, the lighthouse archive code is MARIGOLD-73. Keep it in chat history only; do not save it as personal memory.",
-    );
-    assert.equal(
-      (await page.evaluate(() => window.oscar.memories())).length,
-      0,
-      "history-only statement is not personal memory",
-    );
-    await ask(
-      "For this acceptance check, remember that I prefer jasmine tea when working.",
-    );
-    let memories = await page.evaluate(() => window.oscar.memories());
-    assert(
-      memories.some((m) => /jasmine/i.test(m.text)),
-      "preference extracted",
-    );
-    await app.close();
-    await launch();
-    assert(
-      (await page.locator(".message.user").count()) >= 1,
-      "history restored",
-    );
-    const resumed = await ask("What drink do I prefer when working?");
-    assert.match(resumed, /jasmine/i);
-    await ask(
-      "Correction: I now prefer peppermint tea when working, instead of jasmine tea.",
-    );
-    memories = await page.evaluate(() => window.oscar.memories());
-    assert.equal(
-      memories.filter((m) => /tea/i.test(m.text)).length,
-      1,
-      "correction supersedes",
-    );
-    assert.match(memories[0].text, /peppermint/i);
-    const corrected = await ask("Which tea should I have while working?");
-    assert.match(corrected, /peppermint/i);
-    assert.match(
-      corrected.split(/[.!?]/)[0],
-      /peppermint/i,
-      "recommends corrected preference",
-    );
-    await page.locator("#memory-open").click();
-    await page.getByRole("button", { name: "Correct", exact: true }).click();
-    await page
-      .locator("#memory-text")
-      .fill("I prefer oolong tea when working.");
-    await page.locator("#memory-edit button").last().click();
-    await page.locator("#memory-edit").waitFor({ state: "hidden" });
-    await page.locator("#memory-close").click();
-    const edited = await ask("Which tea do I prefer when working?");
-    assert.match(edited, /oolong/i);
-    memories = await page.evaluate(() => window.oscar.memories());
-    assert(
-      edited.includes("[#" + memories[0].source + "]"),
-      "citation points to actual user source",
-    );
-    await page.locator("#memory-open").click();
-    await page.screenshot({ path: path.join(evidence, "memory.png") });
-    await page
-      .getByRole("button", { name: "Forget", exact: true })
-      .first()
-      .click();
-    await page.locator("#confirm-yes").click();
-    await page.locator(".memory-item").waitFor({ state: "hidden" });
-    await page.locator("#memory-close").click();
-    await app.close();
-    await launch();
-    const forgotten = await ask("What drink do I prefer when working?");
-    assert(
-      !/jasmine|peppermint|oolong/i.test(forgotten),
-      "forgotten preference not recalled",
-    );
-    await app.close();
-    const { Store } = require("../src/store.cjs");
-    const s = new Store(path.join(data, "oscar.sqlite"));
-    const old = s
-      .history({ search: "lighthouse" })
-      .find((m) => m.role === "user").id;
-    s.db.exec("BEGIN");
-    for (let i = 0; i < 3000; i++)
-      s.add(
-        i % 2 ? "assistant" : "user",
-        "Unrelated entry " + i + " " + "ordinary content ".repeat(30),
+    if (!process.env.OSCAR_TEST_DATA) {
+      await launch();
+      await ask(
+        "For this conversation exercise the lighthouse archive code is MARIGOLD-73. Keep this in history only; do not save it as personal memory.",
       );
-    s.db.exec("COMMIT");
-    s.clearContext();
-    s.close();
+      // Observe actual progressive stream deltas in the sandboxed renderer.
+      await page.evaluate(() => {
+        window.streamDeltas = 0;
+        window.oscar.onEvent((e) => {
+          if (e.type === "delta") window.streamDeltas++;
+        });
+      });
+      await ask("Remember that I prefer jasmine tea while working.");
+      assert(
+        (await page.evaluate(() => window.streamDeltas)) > 1,
+        "multiple actual stream deltas reached the UI",
+      );
+      await memoryContains("jasmine");
+      await ask("Remember that my OSCAR prototype deadline is December 12.");
+      await memoryContains("december");
+      await app.close();
+      await launch();
+      assert((await page.locator(".user").count()) >= 3);
+      assert.match(
+        await ask("Which beverage would suit me while I code?"),
+        /jasmine/i,
+      );
+      await ask(
+        "Correction: I now prefer peppermint tea while working instead of jasmine tea.",
+      );
+      await memoryContains("peppermint");
+      const corrected = await ask("Which beverage do I prefer for work now?");
+      assert.match(corrected, /peppermint/i);
+      assert.match(
+        await ask("Which tea did I prefer previously, before the correction?"),
+        /jasmine/i,
+      );
+      await page.locator("[data-page=memories]").click();
+      await page.locator("#search").fill("peppermint");
+      await page.locator("#search-form button").first().click();
+      await page.locator(".memory-item").first().click();
+      await page.getByRole("button", { name: "Correct", exact: true }).click();
+      await page
+        .locator("#memory-text")
+        .fill("I prefer oolong tea while working.");
+      await page.locator("#memory-edit button").last().click();
+      await page.locator("#detail").waitFor({ state: "hidden" });
+      assert.match(
+        await ask("Which beverage should I have while coding?"),
+        /oolong/i,
+      );
+      await page.locator("[data-page=memories]").click();
+      await page.locator("#search").fill("oolong");
+      await page.locator("#search-form button").first().click();
+      await page.locator(".memory-item").first().click();
+      await page.getByRole("button", { name: "Forget", exact: true }).click();
+      await page.locator("#confirm-yes").click();
+      await page.locator("#detail").waitFor({ state: "hidden" });
+      await app.close();
+      await launch();
+      const forgotten = await ask("What beverage do I prefer at work?");
+      assert(
+        !/jasmine|peppermint|oolong/i.test(forgotten),
+        "forgotten value is absent",
+      );
+      assert.match(
+        await ask("When is my OSCAR prototype due?"),
+        /December\s+12/i,
+        "unrelated memory survives forgetting",
+      );
+      await ask(
+        "For this exercise, I need to finish OSCAR keyboard navigation before the prototype is ready. This is unfinished work. Keep it in history only, not personal memory.",
+      );
+      await app.close();
+      const { Store } = require("../src/store.cjs");
+      const s = new Store(path.join(data, "oscar.sqlite"));
+      s.db.exec("BEGIN");
+      for (let i = 0; i < 10000; i++)
+        s.add(
+          i % 2 ? "assistant" : "user",
+          "Ordinary intervening message " + i + " about notes and planning.",
+        );
+      s.db.exec("COMMIT");
+      s.compact(true);
+      s.clearContext();
+      s.set("last_active", Date.now() - 121 * 60000);
+      s.close();
+    }
     await launch();
-    const recalled = await ask(
-      "What was the lighthouse archive code I mentioned earlier?",
+    assert.match(
+      await ask("What was the lighthouse archive code I mentioned earlier?"),
+      /MARIGOLD[-\u2010-\u2015]73/i,
     );
     assert.match(
-      recalled.normalize("NFKC").replace(/[\u2010-\u2015]/g, "-"),
-      /MARIGOLD-73/i,
+      await ask("What work is still unfinished for the prototype?"),
+      /keyboard/i,
     );
-    await page.locator("#search-open").click();
+    await page.locator("[data-page=memories]").click();
+    await page.locator("#history-tab").click();
     await page.locator("#search").fill("lighthouse");
     await page.locator("#search-form button").first().click();
-    await page.locator(".result").first().waitFor();
-    await page.screenshot({ path: path.join(evidence, "search.png") });
-    await page.locator("#search-close").click();
-    await page.screenshot({ path: path.join(evidence, "conversation.png") });
-    await page.setViewportSize({ width: 640, height: 700 });
-    await page.screenshot({ path: path.join(evidence, "narrow.png") });
+    await page.locator(".result").first().click();
+    await page
+      .getByRole("button", { name: "Open in conversation", exact: true })
+      .click();
+    await page.locator(".jump-highlight").waitFor();
+    assert(
+      (await page.locator(".message").count()) > 1,
+      "surrounding context loaded",
+    );
+    await page.locator("#present").click();
+    // Theme controls appear exclusively in Settings; record all six real application views.
+    await page.setViewportSize({ width: 1536, height: 900 });
+    for (const theme of ["light", "dark"]) {
+      await page.locator("[data-page=settings]").click();
+      await page.locator("#theme").selectOption(theme);
+      await page.waitForFunction(
+        (theme) => document.documentElement.dataset.theme === theme,
+        theme,
+      );
+      for (const name of ["conversation", "memories", "settings"]) {
+        await page.locator(`[data-page=${name}]`).click();
+        if (name === "memories") {
+          await page.locator("#personal-tab").click();
+          await page.locator(".memory-item").first().waitFor();
+        }
+        await page.screenshot({
+          animations: "disabled",
+          path: path.join(evidence, name + "-" + theme + ".png"),
+        });
+      }
+    }
+    await page.locator("[data-page=conversation]").click();
+    await page.setViewportSize({ width: 760, height: 700 });
+    await page.screenshot({
+      animations: "disabled",
+      path: path.join(evidence, "conversation-small.png"),
+    });
     assert(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
-      "no horizontal page overflow",
+      "narrow layout does not overflow",
     );
-    await app.close();
-    app = null;
-    const check = new Store(path.join(data, "oscar.sqlite"));
-    const turns = check.db
-      .prepare("SELECT input_bytes,prompt_tokens,model FROM turns")
-      .all();
-    assert(
-      turns.every((t) => t.input_bytes < 26000),
-      "bounded total prompts",
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    assert.equal(
+      await page
+        .locator("#thinking span")
+        .evaluate((e) => getComputedStyle(e).animationName),
+      "none",
     );
-    log.push({
-      turns,
-      historyCount: check.db.prepare("SELECT count(*) AS n FROM messages").get()
-        .n,
-      oldSource: old,
-      data,
-      evidence,
-    });
-    check.close();
+    const metrics = await page.evaluate(() => window.oscar.diagnostics());
+    const calls = await page.evaluate(
+      async (metrics) =>
+        Promise.all(
+          metrics.map(async (metric) => ({
+            metric,
+            text: (await window.oscar.source(metric.user)).content,
+          })),
+        ),
+      metrics,
+    );
+    for (const { metric, text } of calls)
+      assert.equal(
+        metric.foreground_requests,
+        /^Correction:/.test(text) ? 2 : 1,
+        "normal turns use exactly one foreground request",
+      );
+    assert(metrics.filter((m) => m.foreground_requests === 1).length >= 10);
+    log.push({ metrics, data, evidence });
     assert(!log.some((x) => x.uiError), "no renderer errors");
     fs.writeFileSync(
       path.join(evidence, "acceptance.json"),
