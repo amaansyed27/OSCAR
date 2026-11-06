@@ -1169,3 +1169,49 @@ body,
     animation: none !important;
   }
 }
+
+/* Hover reveals navigation; pinning is the only persistent expansion. */
+.sidebar-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 52px;
+}
+.sidebar-top .identity {
+  flex: 1;
+  min-width: 0;
+  padding-inline: 8px;
+}
+.sidebar-top #collapse {
+  flex: 0 0 28px;
+  width: 28px;
+  min-height: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 5px;
+  border: 0;
+  opacity: 1;
+  transition:
+    opacity 130ms ease,
+    background 130ms ease;
+}
+.sidebar-top #collapse[aria-pressed="true"] {
+  background: var(--hover);
+}
+.sidebar-top #collapse svg {
+  width: 18px;
+  height: 18px;
+}
+body.collapsed .sidebar-top {
+  gap: 0;
+}
+body.collapsed .sidebar-top #collapse {
+  flex-basis: 0;
+  width: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+body.collapsed .sidebar-top .identity {
+  padding-inline: 0;
+}

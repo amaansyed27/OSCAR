@@ -36,22 +36,43 @@ let settingsSection =
   localStorage.getItem("oscar.settingsSection") || "appearance";
 const arrivalIds = new Set();
 let textareaAnimation;
-function setSidebar(expanded) {
+const sidebar = document.querySelector(".sidebar");
+let sidebarPinned = localStorage.getItem("oscar.sidebarPinned") === "true";
+let sidebarHovered = false;
+let sidebarKeyboard = false;
+function setSidebar() {
+  const expanded = sidebarPinned || sidebarHovered || sidebarKeyboard;
   document.body.classList.toggle("collapsed", !expanded);
-  localStorage.setItem("oscar.sidebarExpanded", String(expanded));
   $("collapse").setAttribute("aria-expanded", String(expanded));
-  $("collapse").setAttribute(
-    "aria-label",
-    expanded ? "Collapse sidebar" : "Expand sidebar",
-  );
-  $("collapse").dataset.tooltip = expanded
-    ? "Collapse sidebar"
-    : "Expand sidebar";
-  $("collapse").querySelector("span").textContent = expanded
-    ? "Collapse sidebar"
-    : "Expand sidebar";
+  $("collapse").setAttribute("aria-pressed", String(sidebarPinned));
+  const label = sidebarPinned ? "Unpin sidebar" : "Pin sidebar";
+  $("collapse").setAttribute("aria-label", label);
+  $("collapse").dataset.tooltip = label;
   hideTooltip();
 }
+sidebar.addEventListener("mouseenter", () => {
+  sidebarHovered = true;
+  setSidebar();
+});
+sidebar.addEventListener("mouseleave", () => {
+  sidebarHovered = false;
+  setSidebar();
+});
+sidebar.addEventListener("focusin", () => {
+  sidebarKeyboard = document.activeElement.matches(":focus-visible");
+  setSidebar();
+});
+sidebar.addEventListener("focusout", () =>
+  requestAnimationFrame(() => {
+    sidebarKeyboard =
+      sidebar.contains(document.activeElement) &&
+      document.activeElement.matches(":focus-visible");
+    setSidebar();
+  }),
+);
+sidebar.addEventListener("pointerdown", () => {
+  sidebarKeyboard = false;
+});
 function selectSettings(key, animate = true) {
   const target = $("settings-" + key);
   if (!target) return;
@@ -119,7 +140,11 @@ function hideTooltip() {
 }
 function showTooltip(target) {
   hideTooltip();
-  if (!document.body.classList.contains("collapsed")) return;
+  if (
+    !document.body.classList.contains("collapsed") &&
+    target.id !== "collapse"
+  )
+    return;
   tooltipTimer = setTimeout(() => {
     const rect = target.getBoundingClientRect();
     const tooltip = $("sidebar-tooltip");
@@ -157,7 +182,8 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") hideTooltip();
 });
 addEventListener("resize", hideTooltip);
-setSidebar(localStorage.getItem("oscar.sidebarExpanded") === "true");
+localStorage.removeItem("oscar.sidebarExpanded");
+setSidebar();
 selectSettings(settingsSection, false);
 const date = (v) =>
   new Date(v).toLocaleString([], {
@@ -220,8 +246,11 @@ function navigate(next) {
 }
 for (const b of document.querySelectorAll("[data-page]"))
   b.onclick = () => navigate(b.dataset.page);
-$("collapse").onclick = () =>
-  setSidebar(document.body.classList.contains("collapsed"));
+$("collapse").onclick = () => {
+  sidebarPinned = !sidebarPinned;
+  localStorage.setItem("oscar.sidebarPinned", String(sidebarPinned));
+  setSidebar();
+};
 for (const b of document.querySelectorAll("[data-page]")) {
   b.setAttribute("aria-label", b.textContent.trim());
   b.dataset.tooltip = b.textContent.trim();

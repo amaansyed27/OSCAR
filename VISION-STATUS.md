@@ -194,3 +194,10 @@ Actual screenshots cover all three populated pages in both themes at 1536×900 a
 **Measured local retrieval:** release-mode synthetic 100,001-record test, 20 warm samples. Specific lookup p95 retrieval 0.98 ms and packing 0.25 ms; broad query p95 retrieval 52.65 ms and packing 3.70 ms. The original source remained available under 8K/16K/32K budgets. These are local synthetic measurements, not an AI speed comparison or production-scale reliability guarantee.
 
 **Delivery/limits:** optimized Windows executable (19.71 MiB) and NSIS installer (5.82 MiB) built. `npm run test:release` verified the actual release executable, real streaming, restart, source-backed memory, local fonts and all six theme screenshots in `.oscar/tauri-evidence/`. `npm start` also launched the development app. WebView2 is required. Installer signing and owner install/uninstall acceptance are not complete. Existing lexical recall, fallible automatic extraction, provider quota and unencrypted local storage limitations remain. No new product features or framework performance claims are implied. Stop for owner review.
+
+## Slice 01 — Hover navigation (2026-11-07)
+
+- [x] Sidebar opens transiently on hover or keyboard focus; leaving navigation collapses it unless pinned.
+- [x] Top pin beside the wordmark persists across restarts; unpinning restores hover behavior. Old expansion preferences do not silently pin the sidebar.
+
+**Verification:** actual Tauri UI checks passed hover enter/leave, animated width, pin/unpin and restart persistence, keyboard navigation, tooltip/Escape, rapid page changes, Settings search, light/dark screenshots, smaller layouts and reduced motion. Owner acceptance remains pending.

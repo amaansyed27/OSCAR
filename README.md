@@ -37,7 +37,7 @@ It reads `GROQ_API_KEY` or `GROQ_API_KEY_1` from the existing local `.env` / `.e
 - **Memories:** search personal statements, inspect their sources, correct or forget them. Conversation history searches the complete archive with dates, relevance sorting, surrounding messages and a jump to the original position.
 - **Settings:** searchable Appearance, Model, Memory and Data & privacy sections. System/Light/Dark appearance, model selection, automatic learning, context size and working-context reset. Choices persist.
 
-The main icon sidebar expands using its bottom control. Settings and an inactive profile icon sit below it. Collapsed icons show hover/focus tooltips. Subtle transitions respect the system reduced-motion preference.
+The main icon sidebar expands on hover and collapses when the pointer leaves. Keyboard focus also reveals navigation. The pin beside the OSCAR wordmark keeps it open across restarts; unpinning restores automatic collapse. Settings and an inactive profile icon remain at the bottom. Icon controls show tooltips where labels are absent. Subtle transitions respect the system reduced-motion preference.
 
 Normal turns use one foreground answer request. Ordinary memory learning runs afterwards in a durable background queue; explicit corrections and forgetting may need an additional request before answering. A reply's acknowledgement is not proof that background learning has committed: inspect Memories. Original user quotes are the memory evidence.
 

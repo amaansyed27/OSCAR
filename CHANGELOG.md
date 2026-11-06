@@ -2,6 +2,12 @@
 
 Entries describe each stage at its date. Later entries supersede earlier behavior and limitations.
 
+## 2026-11-07 — Hover sidebar
+
+- The sidebar now opens on hover and closes when you leave, with keyboard access too.
+- Moved the pin beside the OSCAR wordmark. Pinning keeps navigation open across restarts; unpinning restores automatic collapse.
+- Verified hover, pin/unpin persistence, keyboard use, both themes, smaller windows and reduced motion in Tauri.
+
 ## 2026-11-07 — Repository and documentation audit
 
 - Updated setup instructions and the environment template for the current Tauri/Rust app.

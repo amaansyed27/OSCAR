@@ -18,6 +18,10 @@ async function launch() {
   await p.locator("html[data-theme]").waitFor();
   await p.emulateMedia({ reducedMotion: "no-preference" });
 }
+async function togglePin() {
+  await p.locator(".sidebar").hover({ position: { x: 30, y: 30 } });
+  await p.locator("#collapse").click();
+}
 (async () => {
   try {
     const s = new Store(path.join(data, "oscar.sqlite"));
@@ -43,15 +47,36 @@ async function launch() {
     assert(geometry.settings > geometry.height - 150);
     assert(geometry.profile > geometry.settings);
     await p.locator("[data-page=memories]").hover();
+    await p.waitForTimeout(260);
+    assert.equal(
+      await p.locator("#collapse").getAttribute("aria-expanded"),
+      "true",
+    );
+    assert.equal(
+      await p.locator("#collapse").getAttribute("aria-pressed"),
+      "false",
+    );
+    const pin = await p.locator("#collapse").boundingBox();
+    assert(pin.y < 90, "pin is beside identity at top");
+    await p.locator("#collapse").hover();
     await p.locator("#sidebar-tooltip").waitFor();
-    assert.equal(await p.locator("#sidebar-tooltip").innerText(), "Memories");
+    assert.equal(
+      await p.locator("#sidebar-tooltip").innerText(),
+      "Pin sidebar",
+    );
     await p.keyboard.press("Escape");
     assert(await p.locator("#sidebar-tooltip").isHidden());
+    await p.mouse.move(500, 20);
+    await p.waitForTimeout(260);
+    assert.equal(
+      await p.locator("#collapse").getAttribute("aria-expanded"),
+      "false",
+    );
     // Start a real width transition and sample it while the renderer paints.
     const motion = await p.evaluate(async () => {
       const side = document.querySelector(".sidebar");
       const before = side.getBoundingClientRect().width;
-      document.getElementById("collapse").click();
+      side.dispatchEvent(new MouseEvent("mouseenter"));
       const samples = [];
       const start = performance.now();
       await new Promise((resolve) => {
@@ -71,7 +96,8 @@ async function launch() {
       motion.samples.some((x) => x.width > motion.before + 1 && x.width < 195),
     );
     assert(motion.samples.at(-1).width >= 195);
-    await p.locator("#collapse").click();
+    await p.locator(".sidebar").hover({ position: { x: 30, y: 30 } });
+    await p.mouse.move(500, 20);
     await p.locator("[data-page=settings]").click();
     await p.locator("[data-settings=model]").click();
     assert(await p.locator("#model").isVisible());
@@ -127,7 +153,7 @@ async function launch() {
         animations: "disabled",
       });
     }
-    await p.locator("#collapse").click();
+    await togglePin();
     await p.locator("[data-page=settings]").click();
     await p.screenshot({
       path: path.join(out, "settings-expanded.png"),
@@ -142,7 +168,7 @@ async function launch() {
     await p.locator("[data-page=settings]").click();
     assert(await p.locator("#settings-model").isVisible());
     await p.setViewportSize({ width: 760, height: 700 });
-    await p.locator("#collapse").click();
+    await togglePin();
     await p.screenshot({
       path: path.join(out, "settings-small.png"),
       animations: "disabled",
@@ -155,7 +181,7 @@ async function launch() {
     await p.emulateMedia({ reducedMotion: "reduce" });
     await p.locator("[data-settings=memory]").click();
     await p.locator("[data-page=conversation]").click();
-    await p.locator("#collapse").click();
+    await togglePin();
     assert.equal(
       await p
         .locator(".sidebar")
@@ -170,6 +196,31 @@ async function launch() {
       ),
       0,
     );
+    // Unpin via keyboard, then leaving navigation must collapse it.
+    await p.locator("#collapse").focus();
+    await p.keyboard.press("Space");
+    await p.locator("#message").click();
+    assert.equal(
+      await p.locator("#collapse").getAttribute("aria-expanded"),
+      "false",
+    );
+    await p.locator("[data-page=conversation]").focus();
+    await p.keyboard.press("Tab");
+    assert.equal(
+      await p.locator("#collapse").getAttribute("aria-expanded"),
+      "true",
+    );
+    await p.locator("#message").click();
+    await app.close();
+    await launch();
+    assert.equal(
+      await p.locator("#collapse").getAttribute("aria-pressed"),
+      "false",
+    );
+    assert.equal(
+      await p.locator("#collapse").getAttribute("aria-expanded"),
+      "false",
+    );
     assert.deepEqual(errors, []);
     const intervals = motion.samples
       .slice(1)
@@ -182,7 +233,8 @@ async function launch() {
       frameP95Ms: intervals[Math.floor(intervals.length * 0.95)],
       checks: [
         "sidebar placement",
-        "expand persistence",
+        "hover expansion and collapse",
+        "top pin and restart persistence",
         "hover tooltip and Escape",
         "inert profile",
         "settings search and keyboard",
