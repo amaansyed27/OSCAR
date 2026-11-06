@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-06 — Expressive Orb
+
+- Removed the empty-state sparkles. The yellow face now moves gently within the blue shell, opens its wink and occasionally blinks.
+- Preserved the original logo artwork. Verified movement and expression changes in Electron; reduced motion keeps the original static wink.
+
 ## 2026-11-06 — Empty conversation
 
 - Centered the first-message greeting and composer, with a playful Orb and small spark accents.
