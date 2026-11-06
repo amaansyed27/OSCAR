@@ -165,3 +165,11 @@ Actual screenshots cover all three populated pages in both themes at 1536×900 a
 **Remaining limits:** retrieval and redaction are lexical, with recorded source/span dependencies; broad semantic recall and uncited legacy paraphrases are not comprehensively verified. Automatic memory classification and deterministic working-note extraction can miss or misinterpret information. Summaries are extractive source projections, not a complete semantic world model. Background learning can be delayed or fail under quota/network limits; manual source-based memory controls remain available. Storage and retained backups are unencrypted. Forgetting is not secure erasure of original chat, backups or provider data. No export/delete UI, installer, voice, Workers, Automations, sync or other product screens are included.
 
 **Current overall state: Slice 01 revision is runnable and engineering-verified. Stop here for owner review; no next feature is authorized by this status.**
+
+## Slice 01 navigation and motion refinement (2026-11-06)
+
+- [x] Expandable icon navigation with persisted width, hover/focus tooltips, bottom Settings and an intentionally inactive profile icon.
+- [x] Dedicated searchable Settings navigation for Appearance, Model, Memory and Data & privacy, with existing working controls.
+- [x] Subtle page/message arrivals, composer resizing and sidebar transitions, with reduced-motion support.
+
+**Verification:** `npm run test:ui` passed actual Electron interaction checks for sidebar placement/persistence, tooltips/Escape, inert profile, Settings search/keyboard navigation, rapid page changes, composer resizing, light/dark layouts at 1536×900, smaller 760×700 layout and reduced motion. Animation sampling confirmed intermediate sidebar widths; it is not a general performance benchmark. Screenshots are in ignored `.oscar/motion-evidence/`. Owner acceptance remains pending; LRA behavior is unchanged by this refinement.

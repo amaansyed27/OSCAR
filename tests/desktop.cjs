@@ -184,6 +184,7 @@ async function memoryContains(term) {
     await page.setViewportSize({ width: 1536, height: 900 });
     for (const theme of ["light", "dark"]) {
       await page.locator("[data-page=settings]").click();
+      await page.locator('[data-settings="appearance"]').click();
       await page.locator("#theme").selectOption(theme);
       await page.waitForFunction(
         (theme) => document.documentElement.dataset.theme === theme,

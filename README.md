@@ -30,7 +30,9 @@ It reads `GROQ_API_KEY` or `GROQ_API_KEY_1` from the existing local `.env` / `.e
 
 - **Conversation:** one saved conversation, streamed replies, Stop and Retry. Enter sends; Shift+Enter adds a line. Earlier messages load incrementally.
 - **Memories:** search personal statements, inspect their sources, correct or forget them. Conversation history searches the complete archive with dates, relevance sorting, surrounding messages and a jump to the original position.
-- **Settings:** System/Light/Dark appearance, Groq model selection, automatic learning, context size and working-context reset. Appearance and model choices persist.
+- **Settings:** searchable Appearance, Model, Memory and Data & privacy sections. System/Light/Dark appearance, model selection, automatic learning, context size and working-context reset. Choices persist.
+
+The main icon sidebar expands using its bottom control. Settings and an inactive profile icon sit below it. Collapsed icons show hover/focus tooltips. Subtle transitions respect the system reduced-motion preference.
 
 Normal turns use one foreground answer request. Ordinary memory learning runs afterwards in a durable background queue; explicit corrections and forgetting may need an additional request before answering. A reply's acknowledgement is not proof that background learning has committed: inspect Memories. Original user quotes are the memory evidence.
 
@@ -48,9 +50,12 @@ The database is local and unencrypted. Selected excerpts and memories are sent t
 npm test
 npm run test:desktop
 npm run test:performance
+npm run test:ui
 ```
 
 The desktop suite launches real Electron windows with isolated test data and calls the real provider. It uses quota. It covers persistence, streamed answers/cancellation, current and historical preferences, unrelated recall after forgetting, search/jump, model selection, themes, large history and error recovery. The transport-error test uses a loopback server that closes the connection, then retries against real Groq. Its optional `OSCAR_GROQ_ENDPOINT` override accepts HTTP loopback only; it is not used for normal launches.
+
+`test:ui` checks navigation, Settings search, tooltips, sidebar persistence, motion and reduced motion in isolated Electron windows without provider calls. Its screenshots and interaction measurements go to `.oscar/motion-evidence/`.
 
 Actual application screenshots, transcripts and measurements go to ignored `.oscar/revision-evidence/`. Performance probes separate local retrieval/packing from provider latency; their synthetic results do not establish production-scale memory reliability.
 

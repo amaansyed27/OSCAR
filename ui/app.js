@@ -14,6 +14,151 @@ let learningWarning = "",
   searchCursor = null,
   lastChatTop = 0,
   chatFollow = true;
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const motions = new WeakMap();
+function arrive(element, distance = 5, duration = 180) {
+  motions.get(element)?.cancel();
+  if (reducedMotion.matches) return;
+  const animation = element.animate(
+    [
+      { opacity: 0.45, transform: `translateY(${distance}px)` },
+      { opacity: 1, transform: "translateY(0)" },
+    ],
+    { duration, easing: "cubic-bezier(.2,.8,.2,1)" },
+  );
+  motions.set(element, animation);
+}
+reducedMotion.addEventListener("change", () => {
+  if (reducedMotion.matches)
+    document.getAnimations().forEach((animation) => animation.cancel());
+});
+let settingsSection =
+  localStorage.getItem("oscar.settingsSection") || "appearance";
+const arrivalIds = new Set();
+let textareaAnimation;
+function setSidebar(expanded) {
+  document.body.classList.toggle("collapsed", !expanded);
+  localStorage.setItem("oscar.sidebarExpanded", String(expanded));
+  $("collapse").setAttribute("aria-expanded", String(expanded));
+  $("collapse").setAttribute(
+    "aria-label",
+    expanded ? "Collapse sidebar" : "Expand sidebar",
+  );
+  $("collapse").dataset.tooltip = expanded
+    ? "Collapse sidebar"
+    : "Expand sidebar";
+  $("collapse").querySelector("span").textContent = expanded
+    ? "Collapse sidebar"
+    : "Expand sidebar";
+  hideTooltip();
+}
+function selectSettings(key, animate = true) {
+  const target = $("settings-" + key);
+  if (!target) return;
+  settingsSection = key;
+  localStorage.setItem("oscar.settingsSection", key);
+  document
+    .querySelectorAll(".setting-panel")
+    .forEach((panel) => (panel.hidden = panel !== target));
+  document.querySelectorAll("[data-settings]").forEach((button) => {
+    if (button.dataset.settings === key)
+      button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  if (animate) arrive(target, 4, 170);
+}
+for (const button of document.querySelectorAll("[data-settings]")) {
+  button.onclick = () => selectSettings(button.dataset.settings);
+  button.onkeydown = (event) => {
+    if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const buttons = [...document.querySelectorAll("[data-settings]")].filter(
+      (b) => !b.hidden,
+    );
+    const at = buttons.indexOf(button);
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? buttons.length - 1
+          : (at + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) %
+            buttons.length;
+    buttons[next]?.focus();
+    buttons[next]?.click();
+  };
+}
+$("settings-search").oninput = () => {
+  const query = $("settings-search").value.toLowerCase().trim();
+  const buttons = [...document.querySelectorAll("[data-settings]")];
+  buttons.forEach(
+    (button) =>
+      (button.hidden =
+        !!query &&
+        !(button.dataset.search + " " + button.textContent)
+          .toLowerCase()
+          .includes(query)),
+  );
+  const visible = buttons.filter((button) => !button.hidden);
+  $("settings-empty").hidden = visible.length > 0;
+  if (!visible.length)
+    document
+      .querySelectorAll(".setting-panel")
+      .forEach((panel) => (panel.hidden = true));
+  else
+    selectSettings(
+      visible.find((button) => button.dataset.settings === settingsSection)
+        ?.dataset.settings || visible[0].dataset.settings,
+    );
+};
+let tooltipTimer, tooltipTarget;
+function hideTooltip() {
+  clearTimeout(tooltipTimer);
+  if (tooltipTarget) tooltipTarget.removeAttribute("aria-describedby");
+  tooltipTarget = null;
+  $("sidebar-tooltip").hidden = true;
+}
+function showTooltip(target) {
+  hideTooltip();
+  if (!document.body.classList.contains("collapsed")) return;
+  tooltipTimer = setTimeout(() => {
+    const rect = target.getBoundingClientRect();
+    const tooltip = $("sidebar-tooltip");
+    tooltip.textContent = target.dataset.tooltip;
+    tooltip.hidden = false;
+    tooltip.style.left =
+      document.querySelector(".sidebar").getBoundingClientRect().right +
+      9 +
+      "px";
+    tooltip.style.top =
+      Math.max(
+        8,
+        Math.min(
+          innerHeight - tooltip.offsetHeight - 8,
+          rect.top + (rect.height - tooltip.offsetHeight) / 2,
+        ),
+      ) + "px";
+    target.setAttribute("aria-describedby", "sidebar-tooltip");
+    tooltipTarget = target;
+    arrive(tooltip, 2, 110);
+  }, 250);
+}
+for (const target of document.querySelectorAll(
+  ".sidebar [data-page],#collapse,#profile",
+)) {
+  target.dataset.tooltip =
+    target.getAttribute("aria-label") || target.textContent.trim();
+  target.removeAttribute("title");
+  target.addEventListener("mouseenter", () => showTooltip(target));
+  target.addEventListener("mouseleave", hideTooltip);
+  target.addEventListener("focus", () => showTooltip(target));
+  target.addEventListener("blur", hideTooltip);
+}
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") hideTooltip();
+});
+addEventListener("resize", hideTooltip);
+setSidebar(localStorage.getItem("oscar.sidebarExpanded") === "true");
+selectSettings(settingsSection, false);
 const date = (v) =>
   new Date(v).toLocaleString([], {
     month: "short",
@@ -41,6 +186,7 @@ function confirm(title, text, action) {
   $("confirm-text").textContent = text;
   confirmAction = action;
   $("confirm-dialog").showModal();
+  arrive($("confirm-dialog"), 3, 150);
 }
 function theme() {
   if (!settings) return;
@@ -48,6 +194,8 @@ function theme() {
     settings.theme === "system" ? systemTheme : settings.theme;
 }
 function navigate(next) {
+  const changed = page !== next;
+  hideTooltip();
   if (page === "conversation" && next !== page) {
     lastChatTop = $("chat-scroll").scrollTop;
     chatFollow = nearBottom();
@@ -60,6 +208,10 @@ function navigate(next) {
     else b.removeAttribute("aria-current");
   }
   $("page-title").textContent = next[0].toUpperCase() + next.slice(1);
+  document
+    .querySelector(".workspace")
+    .classList.toggle("settings-open", next === "settings");
+  if (changed) arrive($("page-" + next));
   if (next === "conversation") {
     if (chatFollow) bottom();
     else $("chat-scroll").scrollTop = lastChatTop;
@@ -68,16 +220,12 @@ function navigate(next) {
 }
 for (const b of document.querySelectorAll("[data-page]"))
   b.onclick = () => navigate(b.dataset.page);
-$("collapse").onclick = () => {
-  const collapsed = document.body.classList.toggle("collapsed");
-  $("collapse").setAttribute(
-    "aria-label",
-    collapsed ? "Expand navigation" : "Collapse navigation",
-  );
-};
+$("collapse").onclick = () =>
+  setSidebar(document.body.classList.contains("collapsed"));
 for (const b of document.querySelectorAll("[data-page]")) {
   b.setAttribute("aria-label", b.textContent.trim());
-  b.title = b.textContent.trim();
+  b.dataset.tooltip = b.textContent.trim();
+  b.removeAttribute("title");
   b.querySelector("svg").setAttribute("aria-hidden", "true");
 }
 function markdown(text) {
@@ -174,6 +322,7 @@ function render() {
     }
     article.append(meta);
     $("messages").append(article);
+    if (arrivalIds.delete(row.id)) arrive(article, 5, 180);
   }
   if (follow) bottom();
   else scroll.scrollTop = position;
@@ -193,8 +342,22 @@ function setBusy(value) {
   $("context-clear").disabled = value;
 }
 function resizeInput() {
-  $("message").style.height = "auto";
-  $("message").style.height = Math.min($("message").scrollHeight, 180) + "px";
+  const input = $("message"),
+    from = input.getBoundingClientRect().height,
+    follow = nearBottom();
+  textareaAnimation?.cancel();
+  input.style.height = "auto";
+  const to = Math.min(input.scrollHeight, 180);
+  input.style.height = to + "px";
+  if (!reducedMotion.matches && Math.abs(from - to) > 1) {
+    textareaAnimation = input.animate(
+      [{ height: from + "px" }, { height: to + "px" }],
+      { duration: 150, easing: "cubic-bezier(.2,.8,.2,1)" },
+    );
+    textareaAnimation.onfinish = () => {
+      if (follow) bottom();
+    };
+  }
 }
 async function send(text, retryId) {
   if (busy || !text.trim()) return;
@@ -311,6 +474,7 @@ $("history-tab").onclick = () => switchTab("history");
 async function showMemory(memory) {
   selected = memory;
   $("detail").hidden = false;
+  arrive($("detail"), 4, 170);
   $("memory-edit").hidden = true;
   $("memory-notice").textContent = "";
   const body = $("detail-body");
@@ -360,6 +524,7 @@ async function showSource(id) {
   if (!source) throw new Error("Source unavailable.");
   navigate("memories");
   $("detail").hidden = false;
+  arrive($("detail"), 4, 170);
   $("memory-edit").hidden = true;
   $("memory-notice").textContent = "";
   $("detail-body").replaceChildren(
@@ -515,12 +680,15 @@ api.onEvent((event) => {
     theme();
   }
   if (event.type === "submitted") {
+    if (!rows.some((row) => row.id === event.user.id))
+      arrivalIds.add(event.user.id);
     rows = rows.filter((r) => r.id !== event.user.id);
     rows.push(event.user);
     render();
     bottom();
   }
   if (event.type === "stream-start") {
+    arrivalIds.add(event.id);
     streamId = event.id;
     streamText = "";
     rows.push({

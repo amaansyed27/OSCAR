@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-06 — Navigation and motion
+
+- Added an expandable icon sidebar with hover and keyboard-focus tooltips. Settings now sits at the bottom beside an inactive profile icon.
+- Organized Settings into searchable Appearance, Model, Memory and Data & privacy sections.
+- Added subtle page, message, composer and sidebar transitions that respect reduced motion.
+- Verified light/dark layouts, smaller windows, rapid navigation and saved sidebar preferences in the running app. Owner review is pending.
+
 ## 2026-11-06 — Slice 01 revision
 
 - Replaced the interface with Conversation, Memories and Settings, with matching light and dark themes.

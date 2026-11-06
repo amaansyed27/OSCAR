@@ -50,12 +50,14 @@ async function ask(text) {
     await launch();
     if (!process.env.OSCAR_REVIEW_RESUME) {
       await p.locator("[data-page=settings]").click();
+      await p.locator('[data-settings="model"]').click();
       await p.locator("#model").selectOption("openai/gpt-oss-120b");
       assert.match(
         await ask("Reply with exactly: model selection works."),
         /model selection works/i,
       );
       await p.locator("[data-page=settings]").click();
+      await p.locator('[data-settings="model"]').click();
       await p.locator("#model").selectOption("openai/gpt-oss-20b");
       await ask(
         "Remember that I prefer concise responses with practical examples.",
@@ -141,6 +143,7 @@ async function ask(text) {
       await p.setViewportSize({ width: 1536, height: 900 });
       for (const theme of ["light", "dark"]) {
         await p.locator("[data-page=settings]").click();
+        await p.locator('[data-settings="appearance"]').click();
         await p.locator("#theme").selectOption(theme);
         await p.waitForFunction(
           (theme) => document.documentElement.dataset.theme === theme,
@@ -172,6 +175,7 @@ async function ask(text) {
       }
     }
     await p.locator("[data-page=settings]").click();
+    await p.locator('[data-settings="appearance"]').click();
     await p.locator("#theme").selectOption("dark");
     await app.close();
     await launch();
@@ -214,6 +218,7 @@ async function ask(text) {
     assert.equal(frames, 10);
     assert((await p.locator(".message").count()) <= 200);
     await p.locator("[data-page=settings]").click();
+    await p.locator('[data-settings="appearance"]').click();
     await p.locator("#theme").selectOption("system");
     await app.evaluate(
       ({ nativeTheme }) => (nativeTheme.themeSource = "light"),
@@ -228,6 +233,7 @@ async function ask(text) {
     await app.evaluate(
       ({ nativeTheme }) => (nativeTheme.themeSource = "system"),
     );
+    await p.locator('[data-settings="appearance"]').click();
     await p.locator("#theme").selectOption("dark");
     results.push({
       latestMetrics: (await p.evaluate(() => window.oscar.diagnostics())).slice(

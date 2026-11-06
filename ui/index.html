@@ -10,7 +10,7 @@
     <title>OSCAR</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
+  <body class="collapsed">
     <aside class="sidebar">
       <div class="identity">
         <img src="../assets/brand/oscar-orb.svg" alt="" /><span>OSCAR</span>
@@ -22,23 +22,47 @@
         ><button data-page="memories">
           <svg viewBox="0 0 24 24">
             <path d="m12 3 9 5-9 5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5" /></svg
-          ><span>Memories</span></button
-        ><button data-page="settings">
-          <svg viewBox="0 0 24 24">
-            <path d="M4 6h16M4 12h16M4 18h16" />
-            <circle cx="9" cy="6" r="2" />
-            <circle cx="15" cy="12" r="2" />
-            <circle cx="9" cy="18" r="2" /></svg
-          ><span>Settings</span>
+          ><span>Memories</span>
         </button>
       </nav>
-      <button
-        id="collapse"
-        aria-label="Collapse navigation"
-        title="Collapse navigation"
-      >
-        ‹
-      </button>
+      <div class="sidebar-bottom">
+        <button
+          id="collapse"
+          class="rail-action"
+          aria-label="Expand sidebar"
+          aria-expanded="false"
+          data-tooltip="Expand sidebar"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="3" />
+            <path d="M9 4v16m4-11 3 3-3 3" /></svg
+          ><span>Expand sidebar</span>
+        </button>
+        <nav aria-label="Application settings">
+          <button data-page="settings">
+            <svg viewBox="0 0 24 24">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+              <circle cx="9" cy="6" r="2" />
+              <circle cx="15" cy="12" r="2" />
+              <circle cx="9" cy="18" r="2" /></svg
+            ><span>Settings</span>
+          </button>
+        </nav>
+        <div
+          id="profile"
+          class="profile rail-action"
+          role="img"
+          aria-label="Profile"
+          tabindex="0"
+          data-tooltip="Profile"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="9" r="3" />
+            <path d="M5 19c1-6 13-6 14 0" /></svg
+          ><span>Profile</span>
+        </div>
+      </div>
     </aside>
     <div class="workspace">
       <header><h1 id="page-title">Conversation</h1></header>
@@ -135,60 +159,143 @@
           </div>
         </div>
       </section>
-      <section id="page-settings" class="page scroll-page" hidden>
-        <div class="page-inner settings">
-          <h2>Appearance</h2>
-          <div class="setting-row">
-            <label for="theme">Theme</label
-            ><select id="theme">
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </div>
-          <h2>Model</h2>
-          <div class="setting-row">
-            <label for="model">Groq</label
-            ><select id="model">
-              <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
-              <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
-            </select>
-          </div>
-          <div class="setting-row">
-            <label for="input-budget">Conversation context</label
-            ><select id="input-budget">
-              <option value="8000">Compact</option>
-              <option value="16000">Balanced</option>
-              <option value="32000">Extended</option>
-            </select>
-          </div>
-          <h2>Memory</h2>
-          <div class="setting-row">
-            <label for="learn">Learn personal preferences</label
-            ><input id="learn" type="checkbox" role="switch" />
-          </div>
-          <div class="setting-row">
-            <div>
-              Working context
-              <p class="secondary">
-                Reset recent context and working state. Keep history and
-                personal memory.
-              </p>
+      <section id="page-settings" class="page settings-layout" hidden>
+        <aside class="settings-sidebar">
+          <h1>Settings</h1>
+          <label class="sr-only" for="settings-search">Search settings</label
+          ><input
+            id="settings-search"
+            type="search"
+            placeholder="Search settings"
+            autocomplete="off"
+          />
+          <nav aria-label="Settings categories">
+            <button
+              data-settings="appearance"
+              data-search="theme light dark system appearance"
+              aria-controls="settings-appearance"
+              aria-current="page"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" />
+                <path
+                  d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"
+                /></svg
+              ><span>Appearance</span></button
+            ><button
+              data-settings="model"
+              data-search="model provider groq context compact balanced extended"
+              aria-controls="settings-model"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="5" y="5" width="14" height="14" rx="3" />
+                <path
+                  d="M9 9h6v6H9zM9 2v3m6-3v3M9 19v3m6-3v3M2 9h3m-3 6h3m14-6h3m-3 6h3"
+                /></svg
+              ><span>Model</span></button
+            ><button
+              data-settings="memory"
+              data-search="memory learn preferences reset working context"
+              aria-controls="settings-memory"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m12 3 9 5-9 5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5" /></svg
+              ><span>Memory</span></button
+            ><button
+              data-settings="privacy"
+              data-search="data privacy history storage encryption"
+              aria-controls="settings-privacy"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z" />
+                <path d="m8 12 3 3 5-6" /></svg
+              ><span>Data & privacy</span>
+            </button>
+          </nav>
+          <p id="settings-empty" class="secondary" role="status" hidden>
+            No matching settings.
+          </p>
+        </aside>
+        <div class="settings-content">
+          <section
+            class="setting-panel"
+            id="settings-appearance"
+            aria-labelledby="heading-appearance"
+          >
+            <h2 id="heading-appearance">Appearance</h2>
+            <div class="setting-row">
+              <label for="theme">Theme</label
+              ><select id="theme">
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
             </div>
-            <button id="context-clear" class="outlined">Reset</button>
-          </div>
-          <h2>Data & privacy</h2>
-          <p>
-            Your conversation is stored on this device. Relevant excerpts and
-            memories are sent to Groq to answer.
-          </p>
-          <p class="secondary">
-            Local data is not encrypted. Forgetting a personal memory stops its
-            retrieval; original conversation records remain readable.
-          </p>
-          <button id="browse-history" class="text-button">
-            Browse conversation history →
-          </button>
+          </section>
+          <section
+            class="setting-panel"
+            id="settings-model"
+            aria-labelledby="heading-model"
+            hidden
+          >
+            <h2 id="heading-model">Model</h2>
+            <div class="setting-row">
+              <label for="model">Groq</label
+              ><select id="model">
+                <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
+                <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label for="input-budget">Conversation context</label
+              ><select id="input-budget">
+                <option value="8000">Compact</option>
+                <option value="16000">Balanced</option>
+                <option value="32000">Extended</option>
+              </select>
+            </div>
+          </section>
+          <section
+            class="setting-panel"
+            id="settings-memory"
+            aria-labelledby="heading-memory"
+            hidden
+          >
+            <h2 id="heading-memory">Memory</h2>
+            <div class="setting-row">
+              <label for="learn">Learn personal preferences</label
+              ><input id="learn" type="checkbox" role="switch" />
+            </div>
+            <div class="setting-row">
+              <div>
+                Working context
+                <p class="secondary">
+                  Reset recent context and working state. Keep history and
+                  personal memory.
+                </p>
+              </div>
+              <button id="context-clear" class="outlined">Reset</button>
+            </div>
+          </section>
+          <section
+            class="setting-panel"
+            id="settings-privacy"
+            aria-labelledby="heading-privacy"
+            hidden
+          >
+            <h2 id="heading-privacy">Data & privacy</h2>
+            <p>
+              Your conversation is stored on this device. Relevant excerpts and
+              memories are sent to Groq to answer.
+            </p>
+            <p class="secondary">
+              Local data is not encrypted. Forgetting a personal memory stops
+              its retrieval; original conversation records remain readable.
+            </p>
+            <button id="browse-history" class="text-button">
+              Browse conversation history →
+            </button>
+          </section>
         </div>
       </section>
     </div>
@@ -200,6 +307,7 @@
         ><button id="confirm-yes" class="primary">Confirm</button>
       </div>
     </dialog>
+    <div id="sidebar-tooltip" role="tooltip" hidden></div>
     <script src="../node_modules/marked/lib/marked.umd.js"></script>
     <script src="../node_modules/dompurify/dist/purify.min.js"></script>
     <script src="app.js"></script>
