@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 582 582"
+     width="582"
+     height="582"
+     role="img"
+     aria-labelledby="title desc">
+  <title id="title">OSCAR orb logo</title>
+  <desc id="desc">Blue circular shell with an offset yellow face, one red circular eye and one red curved wink.</desc>
+
+  <defs>
+    <!-- The source artwork has a very subtle painted blue variation rather than a flat fill. -->
+    <radialGradient id="shell" cx="36%" cy="17%" r="84%">
+      <stop offset="0" stop-color="#4A93C9"/>
+      <stop offset="0.42" stop-color="#3786C5"/>
+      <stop offset="1" stop-color="#3282C1"/>
+    </radialGradient>
+
+    <linearGradient id="faceSide" x1="0" y1="0" x2="0.88" y2="1">
+      <stop offset="0" stop-color="#EEB035"/>
+      <stop offset="0.55" stop-color="#E9AC2D"/>
+      <stop offset="1" stop-color="#DFAE42"/>
+    </linearGradient>
+
+    <radialGradient id="face" cx="42%" cy="32%" r="76%">
+      <stop offset="0" stop-color="#FACA43"/>
+      <stop offset="0.70" stop-color="#F9C840"/>
+      <stop offset="1" stop-color="#F8C441"/>
+    </radialGradient>
+
+    <filter id="faceShadow" x="-35%" y="-35%" width="180%" height="190%">
+      <feDropShadow dx="-7" dy="15" stdDeviation="7"
+                    flood-color="#17669F" flood-opacity="0.58"/>
+    </filter>
+  </defs>
+
+  <!-- Outer OSCAR shell -->
+  <circle cx="288" cy="292" r="264" fill="url(#shell)"/>
+
+  <!--
+    The face is intentionally offset to the right.
+    Keep this whole group movable if the website animates OSCAR's attention.
+  -->
+  <g id="oscar-face" filter="url(#faceShadow)">
+    <!-- Narrow ochre edge visible around the face in the source artwork -->
+    <circle cx="374" cy="289" r="187" fill="url(#faceSide)"/>
+
+    <!-- Bright front face, inset slightly to expose the darker edge -->
+    <circle cx="381" cy="289" r="177" fill="url(#face)"/>
+
+    <!-- Left eye -->
+    <circle id="eye-left" cx="299" cy="275" r="42" fill="#E74A49"/>
+
+    <!-- Right eye / wink -->
+    <path id="eye-right"
+          d="M426 276 C444 261, 465 258, 485 272"
+          fill="none"
+          stroke="#E74A49"
+          stroke-width="21"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+  </g>
+</svg>

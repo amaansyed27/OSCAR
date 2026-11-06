@@ -1,0 +1,76 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# Logs / runtime state
+*.log
+logs/
+.tmp/
+tmp/
+.cache/
+.oscar/
+runtime/
+state/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Node / web / desktop
+node_modules/
+.next/
+.nuxt/
+.svelte-kit/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Rust / Tauri
+/target/
+**/target/
+/desktop/src-tauri/gen/
+
+# Android / Kotlin
+.kotlin/
+.gradle/
+**/build/
+local.properties
+*.apk
+*.aab
+
+# Embedded build outputs
+.pio/
+build-*/
+*.elf
+*.bin
+*.uf2
+*.map
+
+# Generated recordings / captures
+recordings/
+captures/
+screenshots/
