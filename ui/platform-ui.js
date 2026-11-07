@@ -55,6 +55,7 @@ async function refreshPlatform() {
   $("model-picker").textContent = selectionLabel(current.model);
   $("search-mode").value = current.search_mode || "auto";
   $("spending-ceiling").value = current.spending_ceiling || "";
+  $("search-paid-budget").value = current.search_paid_credits || "0";
   renderWaterfall();
   renderProvider();
 }
@@ -591,6 +592,11 @@ $("file-input").onchange = (e) => {
   addFiles([...e.target.files]);
   e.target.value = "";
 };
+for (const name of ["dragover", "drop"]) {
+  document.addEventListener(name, (event) => {
+    if (event.dataTransfer?.types.includes("Files")) event.preventDefault();
+  });
+}
 $("page-conversation").addEventListener("dragover", (e) => {
   if (e.dataTransfer.types.includes("Files")) {
     e.preventDefault();
@@ -677,3 +683,6 @@ async function previewAttachment(id, chunk = 0) {
     notice(e.message);
   }
 }
+
+$("search-paid-budget").onchange = () =>
+  saveSettings({ search_paid_credits: $("search-paid-budget").value });

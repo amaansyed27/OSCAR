@@ -361,6 +361,8 @@ function render() {
     meta.append(time);
     if (typeof row.id === "number")
       meta.append(button("Source", () => showSource(row.id)));
+    if (row.role === "assistant" && row.status === "complete")
+      meta.append(button("Details", () => showResponseDetails(row.id)));
     if (["failed", "interrupted"].includes(row.status)) {
       meta.append(
         document.createTextNode(
@@ -833,3 +835,37 @@ for (const id of ["personal-tab", "history-tab"])
       $(next).focus();
     }
   };
+
+async function showResponseDetails(id) {
+  const data = await api.responseDetails(id);
+  const dialog = document.createElement("dialog");
+  dialog.className = "attachment-preview";
+  const h = document.createElement("h2");
+  h.textContent = "Response details";
+  const text = document.createElement("p");
+  const u = data?.usage;
+  text.textContent = u
+    ? `${selectionLabel(`${u.provider}::${u.model}`)} · ${u.prompt_tokens ?? "Unknown"} input tokens · ${u.completion_tokens ?? "Unknown"} output/reasoning tokens`
+    : "Usage was not recorded for this older response.";
+  const cost = document.createElement("p");
+  cost.className = "secondary";
+  cost.textContent = u
+    ? typeof u.cost === "number"
+      ? `Provider-reported inference cost: $${u.cost}`
+      : typeof u.estimated_cost === "number"
+        ? `Estimated inference cost: $${u.estimated_cost.toFixed(6)}. Provider billing is authoritative.`
+        : "Inference price unavailable."
+    : "";
+  const strategy = document.createElement("p");
+  strategy.textContent = data?.decision
+    ? `${data.decision.task}. ${data.decision.explanation}`
+    : "";
+  const close = button("Close", () => {
+    dialog.close();
+    dialog.remove();
+  });
+  dialog.append(h, text, cost, strategy, close);
+  document.body.append(dialog);
+  dialog.showModal();
+  dialog.addEventListener("cancel", () => dialog.remove());
+}

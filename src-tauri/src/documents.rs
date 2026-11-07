@@ -271,9 +271,8 @@ pub fn isolated_extract(path: &Path, name: &str) -> Result<String> {
     }
     let mut child = command.spawn()?;
     #[cfg(windows)]
-    let _limits = ParserJob::attach(&child).map_err(|e| {
+    let _limits = ParserJob::attach(&child).inspect_err(|_| {
         let _ = child.kill();
-        e
     })?;
 
     {
@@ -406,4 +405,23 @@ impl Drop for ParserJob {
     fn drop(&mut self) {
         unsafe { windows_sys::Win32::Foundation::CloseHandle(self.0) };
     }
+}
+
+/// Only citations to exact passages actually supplied in this request are actionable.
+pub fn ground_references(answer: &str, evidence: &Value) -> String {
+    re(r"\[D:([A-Za-z0-9-]+):(\d+)\]")
+        .replace_all(answer, |c: &regex::Captures| {
+            let ordinal = c[2].parse::<i64>().unwrap_or(-1);
+            if evidence
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|e| st(e, "attachment") == &c[1] && e["chunk"].as_i64() == Some(ordinal))
+            {
+                c[0].to_string()
+            } else {
+                "[document source unavailable]".into()
+            }
+        })
+        .into_owned()
 }

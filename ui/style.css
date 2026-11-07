@@ -1504,3 +1504,23 @@ summary {
   gap: 2px;
   flex-wrap: nowrap;
 }
+
+.settings-form input:not([type="checkbox"]):not([type="range"]),
+.settings-form textarea,
+.rich-component input[type="number"],
+.rich-component input[type="search"] {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 9px 11px;
+  font: inherit;
+  min-width: 0;
+}
+.rich-component input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.rich-component label {
+  flex-wrap: wrap;
+}

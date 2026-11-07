@@ -528,6 +528,10 @@
                     <option value="reasoning.effort.openrouter">
                       OpenRouter reasoning.effort
                     </option>
+                    <option value="ollama.think">Ollama think</option>
+                    <option value="bedrock.thinking">
+                      Bedrock Claude thinking
+                    </option>
                     <option value="thinking.budget">
                       Gemini thinking budget
                     </option>
@@ -652,7 +656,7 @@
           >
             <h2 id="heading-model">Model & routing</h2>
             <div class="setting-row">
-              <label for="model">Groq</label
+              <label for="model">Selection</label
               ><select id="model">
                 <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
                 <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
@@ -666,6 +670,16 @@
                 <option value="32000">Extended</option>
               </select>
             </div>
+            <label
+              >Potentially billable search credits per answer<select
+                id="search-paid-budget"
+              >
+                <option value="0">Included credits only</option>
+                <option value="1">Up to 1 credit</option>
+                <option value="2">Up to 2 credits</option>
+                <option value="3">Up to 3 credits</option>
+              </select></label
+            >
             <h3>Manual fallback order</h3>
             <p class="secondary">
               Fallback happens before any answer text. A partial reply is never
@@ -716,11 +730,13 @@
             <h2 id="heading-privacy">Data & privacy</h2>
             <p>
               Your conversation is stored on this device. Relevant excerpts and
-              memories are sent to Groq to answer.
+              memories and selected attachments are sent to the chosen cloud
+              provider. Web search sends your query to Tavily when enabled.
             </p>
             <p class="secondary">
-              Local data is not encrypted. Forgetting a personal memory stops
-              its retrieval; original conversation records remain readable.
+              Conversation data is not encrypted. Credentials added here use
+              Windows protection. Forgetting a personal memory stops its
+              retrieval; original conversation records remain readable.
             </p>
             <button id="browse-history" class="text-button">
               Browse conversation history →

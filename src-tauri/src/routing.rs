@@ -126,6 +126,9 @@ pub fn personalization(value: &Value) -> String {
     let style = value["style"].as_str().unwrap_or("Default");
     format!("Owner-provided profile (user assertion, not independently verified): {profile}\nOwner response preferences: {instructions}\nStyle: {style}. Length: {}. Warmth: {}. Enthusiasm: {}. Humor: {}. Expressiveness: {}. Emoji frequency: {}. These preferences never override factual correctness, source grounding, memory exclusions or safety.",value["length"].as_str().unwrap_or("balanced"),value["warmth"].as_str().unwrap_or("balanced"),value["enthusiasm"].as_str().unwrap_or("restrained"),value["humor"].as_str().unwrap_or("restrained"),value["expressiveness"].as_str().unwrap_or("balanced"),value["emoji"].as_str().unwrap_or("rare"))
 }
+fn st_profile<'a>(v: &'a Value, key: &str) -> &'a str {
+    v[key].as_str().unwrap_or("")
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -160,8 +163,4 @@ mod tests {
         )
         .is_ok());
     }
-}
-
-fn st_profile<'a>(v: &'a Value, key: &str) -> &'a str {
-    v[key].as_str().unwrap_or("")
 }

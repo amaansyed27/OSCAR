@@ -1,6 +1,6 @@
 {
   "name": "oscar",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "OSCAR Desktop conversation and local memory",
   "scripts": {
     "start": "tauri dev",
@@ -12,7 +12,8 @@
     "ui:build": "node scripts/build-ui.cjs",
     "pretest": "node scripts/build-ui.cjs",
     "pretest:performance": "node scripts/build-ui.cjs",
-    "test:release": "node tests/release.cjs"
+    "test:release": "node tests/release.cjs",
+    "test:slice02": "node scripts/build-ui.cjs && cargo build --manifest-path src-tauri/Cargo.toml && node tests/slice02.cjs"
   },
   "repository": {
     "type": "git",

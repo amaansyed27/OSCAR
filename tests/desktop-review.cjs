@@ -51,14 +51,14 @@ async function ask(text) {
     if (!process.env.OSCAR_REVIEW_RESUME) {
       await p.locator("[data-page=settings]").click();
       await p.locator('[data-settings="model"]').click();
-      await p.locator("#model").selectOption("openai/gpt-oss-120b");
+      await p.locator("#model").selectOption("groq::openai/gpt-oss-120b");
       assert.match(
         await ask("Reply with exactly: model selection works."),
         /model selection works/i,
       );
       await p.locator("[data-page=settings]").click();
       await p.locator('[data-settings="model"]').click();
-      await p.locator("#model").selectOption("openai/gpt-oss-20b");
+      await p.locator("#model").selectOption("groq::openai/gpt-oss-20b");
       await ask(
         "Remember that I prefer concise responses with practical examples.",
       );
@@ -185,7 +185,7 @@ async function ask(text) {
     );
     assert.equal(
       (await p.evaluate(() => window.oscar.settings())).model,
-      "openai/gpt-oss-20b",
+      "groq::openai/gpt-oss-20b",
     );
     await p.locator("[data-page=memories]").click();
     await p.locator("#history-tab").click();

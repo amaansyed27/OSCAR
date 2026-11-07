@@ -6,6 +6,7 @@ use tokio_util::sync::CancellationToken;
 #[derive(Clone)]
 pub struct Model {
     pub platform: Option<std::sync::Arc<crate::cloud::Platform>>,
+    legacy_transport: bool,
     pub targets: Vec<crate::adapters::Target>,
     pub client: reqwest::Client,
     key: String,
@@ -29,14 +30,19 @@ impl Model {
             .get("OSCAR_MODEL")
             .cloned()
             .unwrap_or("openai/gpt-oss-20b".into());
-        if !["openai/gpt-oss-20b", "openai/gpt-oss-120b"].contains(&model.as_str()) {
-            return Err(anyhow!("Unsupported OSCAR_MODEL."));
+        if model.is_empty() || model.len() > 260 || model.contains(['\r', '\n']) {
+            return Err(anyhow!("Invalid OSCAR_MODEL selection."));
         }
         let endpoint = vars
             .get("OSCAR_GROQ_ENDPOINT")
             .cloned()
             .unwrap_or("https://api.groq.com/openai/v1/chat/completions".into());
         if vars.contains_key("OSCAR_GROQ_ENDPOINT") {
+            if !cfg!(debug_assertions) {
+                return Err(anyhow!(
+                    "The loopback transport fixture is available only in debug builds."
+                ));
+            }
             let url = reqwest::Url::parse(&endpoint)?;
             if url.scheme() != "http"
                 || !matches!(url.host_str(), Some("127.0.0.1" | "localhost" | "[::1]"))
@@ -46,16 +52,21 @@ impl Model {
         }
         Ok(Self {
             platform: None,
+            legacy_transport: vars.contains_key("OSCAR_GROQ_ENDPOINT"),
             targets: vec![],
             client: reqwest::Client::builder()
                 .timeout(Duration::from_secs(90))
                 .redirect(reqwest::redirect::Policy::none())
                 .build()?,
-            key: vars
-                .get("GROQ_API_KEY")
-                .or(vars.get("GROQ_API_KEY_1"))
-                .cloned()
-                .unwrap_or_default(),
+            key: if vars.contains_key("OSCAR_GROQ_ENDPOINT") {
+                "loopback-fixture-only".into()
+            } else {
+                vars.get("GROQ_API_KEY")
+                    .filter(|s| !s.trim().is_empty())
+                    .or_else(|| vars.get("GROQ_API_KEY_1").filter(|s| !s.trim().is_empty()))
+                    .cloned()
+                    .unwrap_or_default()
+            },
             model,
             endpoint,
             budget: vars
@@ -87,9 +98,13 @@ impl Model {
         documents: bool,
     ) -> Result<(Self, crate::routing::Decision)> {
         let mut model = self.clone();
-        if let Some(platform) = &self.platform {
+        if let Some(platform) = self.platform.as_ref().filter(|_| !self.legacy_transport) {
             let (targets, decision) = platform.targets(&self.model, text, vision, documents)?;
             let first = &targets[0].spec;
+            if first.context.is_none() {
+                return Err(anyhow!("This model's context limit is unknown. Register its documented limit in AI Providers before using it."));
+            }
+
             model.budget = first
                 .context
                 .unwrap_or(8192)
@@ -148,7 +163,7 @@ impl Model {
         Ok(response)
     }
     pub async fn complete(&self, messages: Value, cancel: &CancellationToken) -> Result<String> {
-        if let Some(platform) = &self.platform {
+        if let Some(platform) = self.platform.as_ref().filter(|_| !self.legacy_transport) {
             let prepared = if self.targets.is_empty() {
                 self.prepare("Extract personal memory JSON", false, false)?
                     .0
@@ -176,7 +191,7 @@ impl Model {
         cancel: &CancellationToken,
         mut delta: impl FnMut(&str, &str) -> Result<()>,
     ) -> Result<(String, Value)> {
-        if let Some(platform) = &self.platform {
+        if let Some(platform) = self.platform.as_ref().filter(|_| !self.legacy_transport) {
             return crate::adapters::stream(platform, &self.targets, messages, cancel, delta).await;
         }
         let response = self.request(messages, false, true, cancel).await?;
@@ -317,6 +332,7 @@ mod tests {
         });
         Model {
             platform: None,
+            legacy_transport: true,
             targets: vec![],
             client: reqwest::Client::new(),
             key: "test-only".into(),

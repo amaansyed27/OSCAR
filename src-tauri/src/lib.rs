@@ -16,3 +16,5 @@ pub mod platform_actions;
 pub mod wire;
 
 pub mod auth;
+
+pub mod search;

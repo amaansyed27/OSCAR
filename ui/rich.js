@@ -84,6 +84,14 @@ async function enhanceRich(root, message) {
         figure
           .querySelectorAll("a")
           .forEach((a) => a.replaceWith(...a.childNodes));
+        const zoom = richNode("button", "Zoom diagram", "secondary-button");
+        let enlarged = false;
+        zoom.onclick = () => {
+          enlarged = !enlarged;
+          figure.querySelector("svg").style.minWidth = enlarged ? "1100px" : "";
+          zoom.textContent = enlarged ? "Fit diagram" : "Zoom diagram";
+        };
+        figure.prepend(zoom);
         if (root.isConnected) pre.replaceWith(figure);
       } catch {
         pre.before(
@@ -255,21 +263,37 @@ async function renderComponent(v, message, id) {
     svg.setAttribute("role", "img");
     svg.setAttribute("aria-label", v.title || "Chart");
     const max = Math.max(...data.map((d) => Math.abs(d.value)), 1);
+    const signed = data.some((d) => d.value < 0);
     data.forEach((d, i) => {
       const label = document.createElementNS(ns, "text");
       label.setAttribute("x", "0");
       label.setAttribute("y", String(25 + i * 33));
       label.textContent = d.label.slice(0, 22);
       const bar = document.createElementNS(ns, "rect");
-      bar.setAttribute("x", "175");
+      bar.setAttribute(
+        "x",
+        String(
+          signed
+            ? d.value < 0
+              ? 340 - (Math.abs(d.value) / max) * 160
+              : 340
+            : 175,
+        ),
+      );
       bar.setAttribute("y", String(10 + i * 33));
-      bar.setAttribute("width", String((Math.abs(d.value) / max) * 330));
+      bar.setAttribute(
+        "width",
+        String((Math.abs(d.value) / max) * (signed ? 160 : 330)),
+      );
       bar.setAttribute("height", "20");
       bar.setAttribute("fill", "var(--focus)");
       const value = document.createElementNS(ns, "text");
       value.setAttribute("x", "520");
       value.setAttribute("y", String(25 + i * 33));
       value.textContent = String(d.value);
+      const tip = document.createElementNS(ns, "title");
+      tip.textContent = `${d.label}: ${d.value}`;
+      bar.append(tip);
       svg.append(label, bar, value);
     });
     box.append(svg);

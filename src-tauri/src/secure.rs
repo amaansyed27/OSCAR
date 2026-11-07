@@ -3,7 +3,7 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 #[cfg(windows)]
 pub fn protect(secret: &str) -> Result<String> {
     use windows_sys::Win32::{Foundation::LocalFree, Security::Cryptography::*};
-    let mut input = CRYPT_INTEGER_BLOB {
+    let input = CRYPT_INTEGER_BLOB {
         cbData: secret.len() as u32,
         pbData: secret.as_ptr() as *mut u8,
     };
@@ -13,7 +13,7 @@ pub fn protect(secret: &str) -> Result<String> {
     };
     let ok = unsafe {
         CryptProtectData(
-            &mut input,
+            &input,
             std::ptr::null(),
             std::ptr::null(),
             std::ptr::null_mut(),
@@ -34,7 +34,7 @@ pub fn protect(secret: &str) -> Result<String> {
 pub fn unprotect(encoded: &str) -> Result<String> {
     use windows_sys::Win32::{Foundation::LocalFree, Security::Cryptography::*};
     let mut bytes = STANDARD.decode(encoded)?;
-    let mut input = CRYPT_INTEGER_BLOB {
+    let input = CRYPT_INTEGER_BLOB {
         cbData: bytes.len() as u32,
         pbData: bytes.as_mut_ptr(),
     };
@@ -44,7 +44,7 @@ pub fn unprotect(encoded: &str) -> Result<String> {
     };
     let ok = unsafe {
         CryptUnprotectData(
-            &mut input,
+            &input,
             std::ptr::null_mut(),
             std::ptr::null(),
             std::ptr::null_mut(),

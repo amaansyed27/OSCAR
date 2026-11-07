@@ -53,7 +53,13 @@ impl Platform {
                 ceiling.parse().ok(),
             )?
         } else {
-            let mut specs = vec![self.spec(selection)?];
+            let primary = self.spec(selection);
+            let mut specs = primary
+                .as_ref()
+                .ok()
+                .cloned()
+                .into_iter()
+                .collect::<Vec<_>>();
             let waterfall: Value = serde_json::from_str(&waterfall)?;
             for item in waterfall.as_array().into_iter().flatten() {
                 if item["enabled"] != false {
@@ -65,10 +71,7 @@ impl Platform {
                                     .as_str()
                                     .filter(|s| !s.is_empty())
                                     .map(String::from),
-                                item["reasoning"]
-                                    .as_str()
-                                    .filter(|s| *s != "auto")
-                                    .map(String::from),
+                                Some(item["reasoning"].as_str().unwrap_or("auto").into()),
                             ),
                         );
                         if !specs.iter().any(|m| m.id == spec.id) {
@@ -77,10 +80,16 @@ impl Platform {
                     }
                 }
             }
+            if specs.is_empty() {
+                primary?;
+            }
             specs
         };
         let mut targets = vec![];
         for spec in specs.drain(..) {
+            if spec.context.is_none() || spec.streaming == Some(false) {
+                continue;
+            }
             if vision && spec.vision != Some(true) {
                 continue;
             }
@@ -91,7 +100,14 @@ impl Platform {
             let preference = preferences.get(&spec.id).cloned().unwrap_or_default();
             let level = routing::select_reasoning(
                 &spec,
-                preference.1.as_deref().unwrap_or(&reasoning),
+                preference
+                    .1
+                    .as_deref()
+                    .unwrap_or(if selection.starts_with("auto:") {
+                        "auto"
+                    } else {
+                        &reasoning
+                    }),
                 &decision,
             )?;
             targets.push(Target {
@@ -102,7 +118,7 @@ impl Platform {
             });
         }
         if targets.is_empty() {
-            return Err(anyhow!("No enabled model supports these inputs. Choose a verified vision model for images."));
+            return Err(anyhow!("No enabled model with documented context limits supports these inputs. Check AI Providers and use a verified vision model for images."));
         }
         targets.truncate(8);
         Ok((targets, decision))
@@ -184,6 +200,9 @@ pub fn request_body(
         }
         "responses" => {
             body = json!({"model":spec.model,"input":messages,"max_output_tokens":out,"stream":stream,"store":false});
+            if spec.provider == "perplexity" {
+                body["tools"] = json!([]);
+            }
             if let Some(items) = body["input"].as_array_mut() {
                 for m in items {
                     if let Some(parts) = m["content"].as_array_mut() {
@@ -247,7 +266,7 @@ pub fn request_body(
                 .into_iter()
                 .flatten()
                 .filter(|m| m["role"] != "system")
-                .map(|m| json!({"role":m["role"],"content":[{"text":m["content"]}]}))
+                .map(|m| { let parts=if let Some(parts)=m["content"].as_array() {parts.iter().map(|p| {if p["type"]=="image_url" {let (head,data)=st(&p["image_url"],"url").split_once(',').unwrap_or(("", ""));json!({"image":{"format":head.trim_start_matches("data:image/").trim_end_matches(";base64"),"source":{"bytes":data}}})} else {json!({"text":p["text"]})}}).collect::<Vec<_>>()}else{vec![json!({"text":m["content"]})]}; json!({"role":m["role"],"content":parts})})
                 .collect();
             body = json!({"system":system,"messages":msgs,"inferenceConfig":{"maxTokens":out}});
         }
@@ -277,6 +296,16 @@ pub fn request_body(
             Some("thinking.adaptive") => {
                 body["thinking"] = json!({"type":"adaptive"});
                 body["output_config"] = json!({"effort":level});
+            }
+            Some("ollama.think") => {
+                body["think"] = if ["on", "off"].contains(&level.as_str()) {
+                    json!(level == "on")
+                } else {
+                    json!(level)
+                };
+            }
+            Some("bedrock.thinking") => {
+                body["additionalModelRequestFields"] = json!({"thinking":{"type":if level=="off"{"disabled"}else{"enabled"},"budget_tokens":1024}});
             }
             Some("thinking.enabled") => {
                 body["thinking"] =
@@ -409,7 +438,23 @@ async fn request(
         .unwrap_or(60);
     platform.record_status(&cid, status, retry)?;
     if !(200..300).contains(&status) {
-        return Err(anyhow!("{} returned HTTP {status}. {}",st(&target.provider,"name"),match status{429=>format!("Rate limited; retry after {retry} seconds. No quota-evading key rotation was attempted."),401|403=>"Check this credential and its product access.".into(),_=>"The request was not completed.".into()}));
+        let reason = if status == 400 || status == 404 || status == 422 {
+            let raw = network::bounded(response, 16000).await.unwrap_or_default();
+            let v: Value = serde_json::from_slice(&raw).unwrap_or(Value::Null);
+            let message = v["error"]["message"]
+                .as_str()
+                .unwrap_or("The request was rejected.")
+                .replace(&key, "[credential]");
+            crate::store::re(r"(?i)(?:sk-|bearer )[a-z0-9_-]{8,}")
+                .replace_all(&truncate(&message, 400), "[credential]")
+                .into_owned()
+        } else {
+            match status { 429=>format!("Rate limited; retry after {retry} seconds. No quota-evading key rotation was attempted."),401|403=>"Check this credential and its product access.".into(),_=>"The request was not completed.".into() }
+        };
+        return Err(anyhow!(
+            "{} returned HTTP {status}. {reason}",
+            st(&target.provider, "name")
+        ));
     }
     Ok((response, cid))
 }
@@ -435,6 +480,15 @@ pub async fn stream(
     mut delta: impl FnMut(&str, &str) -> Result<()>,
 ) -> Result<(String, Value)> {
     let mut last = anyhow!("No suitable route is available.");
+    let spending_ceiling = platform
+        .store
+        .lock()
+        .unwrap()
+        .get("spending_ceiling", "")
+        .parse::<f64>()
+        .ok();
+    let mut reserved_cost = 0.;
+
     for target in targets {
         if cancel.is_cancelled() {
             return Err(anyhow!("Stopped"));
@@ -447,6 +501,22 @@ pub async fn stream(
                 "Fallback model context is too small; evidence was not silently truncated."
             );
             continue;
+        }
+        if let Some(ceiling) = spending_ceiling {
+            let Some(cost) = routing::estimate(
+                &target.spec,
+                input,
+                target.spec.output.unwrap_or(4000).min(16000),
+            ) else {
+                last =
+                    anyhow!("Fallback pricing is unknown; spending ceiling cannot be guaranteed.");
+                continue;
+            };
+            if reserved_cost + cost > ceiling {
+                last = anyhow!("Fallback would exceed the per-answer spending ceiling.");
+                continue;
+            }
+            reserved_cost += cost;
         }
         let response = request(platform, target, messages.clone(), false, true, cancel).await;
         let (response, cid) = match response {

@@ -60,7 +60,6 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let root = std::env::var_os("OSCAR_CONFIG_DIR")
                 .map(PathBuf::from)

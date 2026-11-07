@@ -7,6 +7,78 @@ fn fresh() -> (tempfile::TempDir, Store) {
     (d, s)
 }
 #[test]
+fn token_compaction_and_repeated_project_recall() {
+    let (_d, s) = fresh();
+    let mut sources = vec![];
+    for round in 0..4 {
+        let fact = format!("Project Meridian{round} archive code is LANTERN-{round}7. I need to finish its access review.");
+        let id = s.add("user", &fact, "complete").unwrap();
+        sources.push((id, fact, round));
+        for _ in 0..18 {
+            s.add("assistant", "Context fixture only.", "complete")
+                .unwrap();
+        }
+        s.set("episode_tokens", 3000).unwrap();
+        s.set("episode_threshold", 2048).unwrap();
+        s.context("Continue the unfinished review", 4000).unwrap();
+        assert_eq!(s.get("episode_tokens", "-1"), "0");
+    }
+    for (id, text, round) in sources {
+        for limit in [4000, 8000, 16000] {
+            let c = s
+                .context(
+                    &format!("What is the archive code for Meridian{round}?"),
+                    limit,
+                )
+                .unwrap();
+            assert!(c.to_string().contains(&format!("LANTERN-{round}7")));
+            assert!(n(&c, "tokens") <= limit as i64);
+            assert_eq!(st(&s.message(id).unwrap(), "content"), text);
+        }
+    }
+}
+#[tokio::test]
+async fn clear_chat_boundary_is_persistent_and_separate() {
+    let (d, s) = fresh();
+    let id = s
+        .add("user", "Project Cedar deadline is December 12.", "complete")
+        .unwrap();
+    s.set("context_start", 0).unwrap();
+    drop(s);
+    let rt = Runtime::open(d.path(), &d.path().join("oscar.sqlite"), |_| {}).unwrap();
+    rt.action("clearChat", json!(null)).await.unwrap();
+    assert!(rt
+        .action("history", json!({"visible":true}))
+        .await
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        rt.action("source", json!(id)).await.unwrap()["content"],
+        "Project Cedar deadline is December 12."
+    );
+    assert_eq!(
+        rt.db(|s| Ok(s.get("context_start", "-1"))).await.unwrap(),
+        "0"
+    );
+    drop(rt);
+    let rt = Runtime::open(d.path(), &d.path().join("oscar.sqlite"), |_| {}).unwrap();
+    assert!(rt
+        .action("history", json!({"visible":true}))
+        .await
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .is_empty());
+    assert!(rt
+        .db(|s| s.context("What is the Cedar deadline?", 4000))
+        .await
+        .unwrap()
+        .to_string()
+        .contains("December 12"));
+}
+#[test]
 fn restart_and_reset_preserve_records() {
     let (d, s) = fresh();
     let id = s

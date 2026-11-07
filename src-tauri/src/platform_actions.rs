@@ -96,7 +96,8 @@ impl Runtime {
             "attachmentPreview" => {
                 let id = arg.as_str().unwrap_or(st(arg, "id")).to_owned();
                 let chunk = n(arg, "chunk");
-                self.db(move|s|{let a=s.one("SELECT id,name,mime,bytes,path FROM attachments WHERE id=?",&[&id])?;if a.is_null(){return Err(anyhow!("Attachment unavailable."))}if st(&a,"mime").starts_with("image/"){use base64::Engine;Ok(json!({"name":a["name"],"image":format!("data:{};base64,{}",st(&a,"mime"),base64::engine::general_purpose::STANDARD.encode(std::fs::read(st(&a,"path"))?))}))}else{let rows=s.all("SELECT text FROM attachment_chunks WHERE attachment=? AND ordinal>=? ORDER BY ordinal LIMIT 3",&[&id,&chunk])?;Ok(json!({"name":a["name"],"text":rows.iter().map(|r|st(r,"text")).collect::<Vec<_>>().join("\n\n"),"excerpt":true,"chunk":chunk}))}}).await?
+                self.db(move|s|{let a=s.one("SELECT id,name,mime,bytes,path FROM attachments WHERE id=?",&[&id])?;if a.is_null(){return Err(anyhow!("Attachment unavailable."))}
+if st(&a,"mime").starts_with("image/"){use base64::Engine;Ok(json!({"name":a["name"],"image":format!("data:{};base64,{}",st(&a,"mime"),base64::engine::general_purpose::STANDARD.encode(std::fs::read(st(&a,"path"))?))}))}else{let rows=s.all("SELECT text FROM attachment_chunks WHERE attachment=? AND ordinal>=? ORDER BY ordinal LIMIT 3",&[&id,&chunk])?;Ok(json!({"name":a["name"],"text":rows.iter().map(|r|st(r,"text")).collect::<Vec<_>>().join("\n\n"),"excerpt":true,"chunk":chunk}))}}).await?
             }
             "attachmentInfo" => {
                 let id = arg.as_str().unwrap_or("").to_owned();

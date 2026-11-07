@@ -5,7 +5,7 @@ const fs = require("node:fs"),
   assert = require("node:assert/strict");
 const root = path.join(__dirname, ".."),
   data = path.join(root, ".oscar", "release-" + Date.now()),
-  out = path.join(root, ".oscar", "tauri-evidence");
+  out = path.join(root, ".oscar", "slice02-evidence", "release");
 fs.mkdirSync(out, { recursive: true });
 let app;
 (async () => {
@@ -34,6 +34,42 @@ let app;
     p.on("pageerror", (e) => errors.push(e.message));
     assert.equal(await p.evaluate(() => typeof window.require), "undefined");
     assert((await p.evaluate(() => window.oscar.status())).configured);
+    const api = (name, arg) =>
+      p.evaluate(([n, a]) => window.oscar[n](a), [name, arg]);
+    await api("discoverModels", { provider: "openrouter" });
+    const models = await api("cloudModels", { provider: "openrouter" });
+    const free = models.find(
+      (m) => m.free && m.model === "nvidia/nemotron-3.5-super-vl:free",
+    );
+    assert(
+      free,
+      "The release fixture needs its OpenRouter free model to be currently listed at zero price.",
+    );
+    await api("registerModel", {
+      provider: "openrouter",
+      model: free.model,
+      output: 2048,
+    });
+    await api("toggleModel", { id: free.id, enabled: true });
+    const custom = await api("saveProvider", {
+      name: "Release routing fixture",
+      protocol: "openai",
+      base: "https://example.com/v1",
+      auth: "none",
+    });
+    const unpriced = await api("registerModel", {
+      provider: custom.id,
+      model: "unpriced",
+      context: 32768,
+      output: 1024,
+    });
+    await api("setSettings", {
+      model: unpriced.id,
+      waterfall: [{ model: free.id }],
+      spending_ceiling: "0",
+      search_mode: "off",
+      learn: false,
+    });
     await p.evaluate(() =>
       window.oscar.edit({
         source: 1,
@@ -57,6 +93,14 @@ let app;
       /native release works/i,
     );
     assert(await p.evaluate(() => window.releaseDeltas > 0));
+    const completed = (await api("history"))
+      .filter((m) => m.role === "assistant")
+      .at(-1);
+    const { usage, route } = await api("responseDetails", completed.id);
+    assert.equal(usage.model, free.model);
+    assert.equal(usage.cost, 0);
+    assert.deepEqual(route, [unpriced.id, free.id]);
+    await api("setSettings", { model: "auto:free", waterfall: [] });
     const count = await p.evaluate(
       async () => (await window.oscar.history()).length,
     );
@@ -97,6 +141,7 @@ let app;
           checks: [
             "native release executable",
             "real model stream",
+            "manual waterfall skips unpriced route under a zero spending ceiling",
             "restart persistence",
             "source-backed memory",
             "local fonts",
@@ -110,9 +155,15 @@ let app;
           installerBytes: fs.statSync(
             path.join(
               root,
-              "src-tauri/target/release/bundle/nsis/OSCAR_0.2.0_x64-setup.exe",
+              "src-tauri/target/release/bundle/nsis/OSCAR_0.3.0_x64-setup.exe",
             ),
           ).size,
+          usage: {
+            model: usage.model,
+            promptTokens: usage.prompt_tokens,
+            outputTokens: usage.completion_tokens,
+            cost: usage.cost,
+          },
         },
         null,
         2,

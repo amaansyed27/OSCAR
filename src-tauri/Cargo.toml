@@ -1,6 +1,6 @@
 [package]
 name = "oscar-desktop"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 
 [lib]
@@ -38,7 +38,6 @@ quick-xml = "0.38"
 pdf-extract = "0.10"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
 calamine = "0.31"
-tauri-plugin-dialog = "2"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Security_Cryptography", "Win32_System_Memory", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security"] }

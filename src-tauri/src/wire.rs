@@ -49,7 +49,37 @@ impl Decoder {
                 {
                     return Err(anyhow!("Bedrock stream checksum failed."));
                 }
-                let data: Value = serde_json::from_slice(&frame[12 + headers..size - 4])?;
+                let payload: Value = serde_json::from_slice(&frame[12 + headers..size - 4])?;
+                let mut pos = 12;
+                let mut kind = String::new();
+                while pos < 12 + headers {
+                    let len = frame[pos] as usize;
+                    pos += 1;
+                    if pos + len + 3 > 12 + headers {
+                        return Err(anyhow!("Invalid event headers."));
+                    }
+                    let name = std::str::from_utf8(&frame[pos..pos + len])?;
+                    pos += len;
+                    if frame[pos] != 7 {
+                        return Err(anyhow!("Unsupported event header type."));
+                    }
+                    pos += 1;
+                    let len = u16::from_be_bytes(frame[pos..pos + 2].try_into().unwrap()) as usize;
+                    pos += 2;
+                    if pos + len > 12 + headers {
+                        return Err(anyhow!("Invalid event header length."));
+                    }
+                    let value = std::str::from_utf8(&frame[pos..pos + len])?;
+                    pos += len;
+                    if name == ":event-type" || name == ":exception-type" {
+                        kind = value.into();
+                    }
+                }
+                let data = if kind.is_empty() {
+                    payload
+                } else {
+                    json!({kind:payload})
+                };
                 if !data["modelStreamErrorException"].is_null()
                     || !data["validationException"].is_null()
                     || !data["throttlingException"].is_null()
@@ -159,6 +189,50 @@ impl Decoder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn bedrock_binary_headers_and_checksums() {
+        let header = |name: &str, value: &str| {
+            let mut b = vec![name.len() as u8];
+            b.extend(name.as_bytes());
+            b.push(7);
+            b.extend((value.len() as u16).to_be_bytes());
+            b.extend(value.as_bytes());
+            b
+        };
+        let frame = |kind: &str, payload: Value| {
+            let h = header(":event-type", kind);
+            let body = payload.to_string();
+            let mut b = vec![];
+            b.extend(((16 + h.len() + body.len()) as u32).to_be_bytes());
+            b.extend((h.len() as u32).to_be_bytes());
+            b.extend(crc32fast::hash(&b).to_be_bytes());
+            b.extend(h);
+            b.extend(body.as_bytes());
+            b.extend(crc32fast::hash(&b).to_be_bytes());
+            b
+        };
+        let mut decoder = Decoder::new("bedrock");
+        let bytes = frame(
+            "contentBlockDelta",
+            json!({"delta":{"text":"Hello"},"contentBlockIndex":0}),
+        );
+        let mut text = String::new();
+        for part in bytes.chunks(3) {
+            for event in decoder.push(part).unwrap() {
+                text.push_str(&event.text);
+            }
+        }
+        assert_eq!(text, "Hello");
+        assert!(
+            decoder
+                .push(&frame("messageStop", json!({"stopReason":"end_turn"})))
+                .unwrap()[0]
+                .done
+        );
+        let mut bad = bytes;
+        bad[15] ^= 1;
+        assert!(Decoder::new("bedrock").push(&bad).is_err());
+    }
     #[test]
     fn fragmented_unicode_openai() {
         let text = "data: {\"choices\":[{\"delta\":{\"content\":\"Hi 🙂\"}}]}\n\ndata: [DONE]\n\n";

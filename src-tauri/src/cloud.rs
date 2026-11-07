@@ -270,11 +270,13 @@ impl Platform {
             return Err(anyhow!("Credential belongs to another provider."));
         }
         if provider!="zai-coding"&&!s.one("SELECT id FROM cloud_credentials WHERE provider='zai-coding' AND fingerprint=?",&[&fp])?.is_null(){return Err(anyhow!("A restricted Coding Plan credential cannot be used for general inference."))}
+        let tx = s.db.unchecked_transaction()?;
         if st(&old, "source").starts_with("environment:") {
             s.db.execute("UPDATE cloud_credentials SET enabled=0 WHERE id=?", [&id])?;
             id = uuid::Uuid::new_v4().to_string();
         }
         s.db.execute("INSERT INTO cloud_credentials(id,provider,nickname,source,secret,enabled,fingerprint) VALUES(?,?,?,'settings',?,1,?) ON CONFLICT(id) DO UPDATE SET secret=excluded.secret,nickname=excluded.nickname,fingerprint=excluded.fingerprint,enabled=1",rusqlite::params![id,provider,nickname,sealed,fp])?;
+        tx.commit()?;
         Ok(json!({"id":id,"saved":true}))
     }
     pub fn credential_action(&self, arg: &Value) -> Result<Value> {
@@ -304,6 +306,11 @@ impl Platform {
         let mut definition = self
             .provider(&id)
             .unwrap_or(json!({"id":id,"enabled":true,"kind":"inference","env":"","auth":"bearer"}));
+        if st(&definition, "kind") == "restricted" || id == "zai-coding" {
+            return Err(anyhow!(
+                "Coding Plan access cannot be converted to general inference."
+            ));
+        }
         let protocol = st(arg, "protocol");
         if ![
             "openai",
@@ -334,7 +341,9 @@ impl Platform {
                 "n",
             ) > 0
         {
-            return Err(anyhow!("Remove or disable connection credentials before changing the host. Create a new provider to use another host."));
+            return Err(anyhow!(
+                "Create a new provider to change the host while credentials exist."
+            ));
         }
         if let Some(headers) = arg["headers"].as_object() {
             if headers.len() > 8 {
@@ -412,7 +421,11 @@ impl Platform {
             ));
         }
         let model = st(arg, "model");
-        if model.is_empty() || model.len() > 200 || model.contains(['\r', '\n', '?', '#']) {
+        if model.is_empty()
+            || model.len() > 200
+            || model.contains(['\r', '\n', '?', '#', '%'])
+            || model.split('/').any(|p| p == ".." || p == ".")
+        {
             return Err(anyhow!("Invalid model identifier."));
         }
         let key = format!("{provider}::{model}");
@@ -488,11 +501,27 @@ impl Platform {
                 "thinking.level",
                 "thinking.adaptive",
                 "thinking.enabled",
+                "ollama.think",
+                "bedrock.thinking",
             ]
             .contains(&parameter)
             {
                 return Err(anyhow!(
                     "Choose the provider's documented reasoning parameter."
+                ));
+            }
+            let valid = match parameter {
+                "thinking.budget" | "thinking.level" => st(&p, "protocol") == "gemini",
+                "thinking.adaptive" | "thinking.enabled" => st(&p, "protocol") == "anthropic",
+                "reasoning.effort" => st(&p, "protocol") == "responses",
+                "reasoning.effort.openrouter" => provider == "openrouter",
+                "ollama.think" => st(&p, "protocol") == "ollama",
+                "bedrock.thinking" => st(&p, "protocol") == "bedrock",
+                _ => ["openai", "cloudflare", "cohere"].contains(&st(&p, "protocol")),
+            };
+            if !valid {
+                return Err(anyhow!(
+                    "Reasoning parameter does not match this API protocol."
                 ));
             }
             spec.reasoning_parameter = Some(parameter.into());
@@ -570,6 +599,9 @@ impl Platform {
             ));
         }
         let protocol = st(&p, "protocol");
+        if ["bedrock", "vertex"].contains(&id) {
+            return Err(anyhow!("Register a model with its documented limits. Account-specific catalog discovery is not available through this inference endpoint."));
+        }
         if protocol == "search" {
             let (_, key) = self.credential(id, None)?;
             let response = network::client_for("https://api.tavily.com/usage")
@@ -628,6 +660,12 @@ impl Platform {
             .ok_or_else(|| {
                 anyhow!("Provider did not return a model list. Use manual registration.")
             })?;
+        let cached: HashMap<String, Spec> = self
+            .models(Some(id))?
+            .into_iter()
+            .filter_map(|row| serde_json::from_value::<Spec>(row).ok())
+            .map(|spec| (spec.id.clone(), spec))
+            .collect();
         let mut count = 0;
         for item in list.iter().take(3000) {
             let model = item["id"]
@@ -646,8 +684,8 @@ impl Platform {
                 continue;
             }
             let mut spec = Spec::manual(id, model);
-            if let Ok(old) = self.spec(&spec.id) {
-                spec = old;
+            if let Some(old) = cached.get(&spec.id) {
+                spec = old.clone();
             }
             spec.name = item["name"].as_str().unwrap_or(model).to_owned();
             spec.context = item["context_length"]

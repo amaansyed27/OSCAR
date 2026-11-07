@@ -259,3 +259,67 @@ fn text_and_office_parser_bounds() {
     assert!(oscar_core::documents::extract(b"not a pdf", "fake.pdf").is_err());
     assert!(oscar_core::documents::extract(b"macro", "file.docm").is_err());
 }
+
+#[test]
+fn citation_and_conflict_guards() {
+    let e = json!([{"attachment":"abc-123","chunk":2,"text":"Launch 18 December"}]);
+    assert_eq!(
+        oscar_core::documents::ground_references("[D:abc-123:2] [D:abc-123:3]", &e),
+        "[D:abc-123:2] [document source unavailable]"
+    );
+    let a =
+        json!({"ref":"W1","excerpt":"Juniper public project launch target deadline December 12"});
+    let b =
+        json!({"ref":"W2","excerpt":"Juniper public project launch target deadline December 18"});
+    assert_eq!(oscar_core::research::possible_conflicts(&[a, b]).len(), 1);
+    let grounded = oscar_core::research::ground_links(
+        "Raw https://madeup.example/x <a href=\"https://invented.example\">bad</a>",
+        &[],
+    );
+    assert!(!grounded.contains("https://"));
+}
+#[test]
+fn stale_free_and_image_constraints() {
+    let mut m = target("openai").spec;
+    m.free = true;
+    m.input_price = Some(0.);
+    m.output_price = Some(0.);
+    m.free_verified_at = Some(chrono::Utc::now().timestamp() - 90000);
+    assert!(routing::rank(
+        vec![m.clone()],
+        "free",
+        &routing::decide("hello", "off", false, false),
+        100,
+        None
+    )
+    .is_err());
+    m.free_verified_at = Some(chrono::Utc::now().timestamp());
+    assert!(routing::rank(
+        vec![m.clone()],
+        "free",
+        &routing::decide("image", "off", true, false),
+        100,
+        None
+    )
+    .is_err());
+    m.vision = Some(true);
+    assert!(routing::rank(
+        vec![m],
+        "free",
+        &routing::decide("image", "off", true, false),
+        100,
+        None
+    )
+    .is_ok());
+}
+#[test]
+fn image_translation_all_native_families() {
+    let messages = json!([{"role":"user","content":[{"type":"text","text":"Inspect"},{"type":"image_url","image_url":{"url":"data:image/png;base64,aGVsbG8="}}]}]);
+    for protocol in ["anthropic", "gemini", "responses", "ollama", "bedrock"] {
+        let (_, body) = request_body(&target(protocol), messages.clone(), false, true).unwrap();
+        assert!(body.to_string().contains("aGVsbG8="), "{protocol}");
+        if protocol != "responses" {
+            assert!(!body.to_string().contains("image_url"), "{protocol}");
+        }
+    }
+}
