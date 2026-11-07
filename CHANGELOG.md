@@ -2,11 +2,12 @@
 
 Entries describe each stage at its date. Later entries supersede earlier behavior and limitations.
 
-## 2026-11-07 — Slice 02 (in progress)
+## 2026-11-07 — Slice 02 · 0.3.0
 
-- Added cloud provider/model registries, protected Settings credentials and import of numbered key slots.
-- Connected routing, attachments, search, personalization and richer conversation controls for integrated testing.
-- Passed the first 44 Rust checks and read-only validation of six configured model providers and Tavily. Full Slice 02 acceptance remains in progress.
+- Added cloud model selection, automatic routing, fallback, and protected credentials in Settings.
+- Added document and image attachments, cited web research, interactive replies, and personalization.
+- Clear Chat now hides older turns while keeping the archive and memory. Token and idle compaction retain original sources.
+- Verified the Windows release, live free inference and search, and the 100K-record memory probe. Provider coverage and remaining owner checks are in the evaluation.
 
 ## 2026-11-07 — Hover sidebar
 

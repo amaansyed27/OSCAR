@@ -1,7 +1,7 @@
 # OSCAR — Vision Status Checklist
 
 **Repository:** [amaansyed27/OSCAR](https://github.com/amaansyed27/OSCAR)  
-**Current implementation:** version 0.2.0, Tauri 2/Rust Windows Desktop. [Current engineering verification](#slice-01--taurirust-migration-2026-11-06); owner approval and installer acceptance remain pending.
+**Current implementation:** version 0.3.0, Tauri 2/Rust Windows Desktop. [Slice 02 evaluation](docs/SLICE02-EVALUATION.md). Owner approval and installer acceptance remain pending.
 **Starting baseline:** Fresh repository, documentation first.  
 **Truth rule:** An unchecked broad capability box means **not yet fully implemented, verified and accepted in this new repository**. Scoped engineering results are recorded below; they do not imply acceptance of the whole capability. It does **not** imply the legacy OSCAR codebase lacked the feature. Reuse is possible after an explicit evaluation.
 
@@ -201,3 +201,13 @@ Actual screenshots cover all three populated pages in both themes at 1536×900 a
 - [x] Top pin beside the wordmark persists across restarts; unpinning restores hover behavior. Old expansion preferences do not silently pin the sidebar.
 
 **Verification:** actual Tauri UI checks passed hover enter/leave, animated width, pin/unpin and restart persistence, keyboard navigation, tooltip/Escape, rapid page changes, Settings search, light/dark screenshots, smaller layouts and reduced motion. Owner acceptance remains pending.
+
+## Slice 02 — Cloud conversation (2026-11-07)
+
+- [x] Configured-provider metadata discovery, numbered credential import and Windows-protected Settings records checked. Live discovery covered six inference accounts and Tavily.
+- [x] OpenRouter free text, document and image replies streamed in the app. The release check verified an ordered fallback within a zero spending ceiling, usage recording and restart persistence.
+- [x] Live Tavily research returned source-linked evidence. Local checks covered URL validation, budgets and citation allowlists.
+- [x] Attachment import and previews, native interactive response rendering and profile persistence checked in Tauri. Captured both themes and a narrow window.
+- [x] Clear Chat preserves recall and the full archive. Verified token and idle compaction, original source retention, correction and forget isolation, and bounded retrieval over 100,001 synthetic records.
+
+The 50 Rust checks, Clippy, desktop integration and release smoke passed. Broad provider and model coverage remains conditional on account-level verification. The [evaluation](docs/SLICE02-EVALUATION.md) records measured results, open gaps and screenshots.
