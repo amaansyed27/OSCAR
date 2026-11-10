@@ -756,6 +756,7 @@ Ok(())}
                     Ok(())
                 })
                 .await?;
+            requests += usage["answer_requests"].as_i64().unwrap_or(1).saturating_sub(1) as i32;
             if cancel.is_cancelled() {
                 return Err(anyhow!("Stopped"));
             }

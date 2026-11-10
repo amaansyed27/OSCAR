@@ -2,6 +2,11 @@
 
 Entries describe each stage at its date. Later entries supersede earlier behavior and limitations.
 
+## 2026-11-10 — Output limit recovery
+
+- If a model exhausts its output before showing a reply, OSCAR can retry once with the same evidence and a shorter answer request. Configured context and spending limits still apply.
+- Preserved streamed text when it arrives in the same chunk as the output-limit signal.
+
 ## 2026-11-10 — Memory learning and model setup
 
 - Fixed Groq GPT-OSS memory extraction requests. A live desktop test saved, corrected, and forgot a preference.

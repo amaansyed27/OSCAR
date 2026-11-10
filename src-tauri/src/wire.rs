@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 pub struct Event {
     pub text: String,
     pub done: bool,
+    pub output_limit: bool,
     pub usage: Value,
 }
 pub struct Decoder {
@@ -87,10 +88,7 @@ impl Decoder {
                     return Err(anyhow!("Bedrock stream was interrupted."));
                 }
                 let text = st(&data["contentBlockDelta"]["delta"], "text").to_owned();
-                if data["messageStop"]["stopReason"] == "max_tokens" {
-                    return Err(anyhow!("Reply reached its output limit."));
-                }
-                events.push(Event{text,done:!data["messageStop"].is_null(),usage:if data["metadata"]["usage"].is_object(){json!({"prompt_tokens":data["metadata"]["usage"]["inputTokens"],"completion_tokens":data["metadata"]["usage"]["outputTokens"]})}else{Value::Null}});
+                events.push(Event{text,output_limit:data["messageStop"]["stopReason"]=="max_tokens",done:!data["messageStop"].is_null(),usage:if data["metadata"]["usage"].is_object(){json!({"prompt_tokens":data["metadata"]["usage"]["inputTokens"],"completion_tokens":data["metadata"]["usage"]["outputTokens"]})}else{Value::Null}});
             }
             return Ok(events);
         }
@@ -144,16 +142,15 @@ impl Decoder {
                 "Provider interrupted its response. Partial reply is saved."
             ));
         }
-        if v["choices"][0]["finish_reason"] == "length"
+        let output_limit = v["choices"][0]["finish_reason"] == "length"
             || v["delta"]["stop_reason"] == "max_tokens"
             || v["done_reason"] == "length"
             || v["finish_reason"] == "MAX_TOKENS"
             || v["candidates"][0]["finishReason"] == "MAX_TOKENS"
-            || v["type"] == "response.incomplete"
-        {
-            return Err(anyhow!(
-                "Reply reached the output limit. Partial reply is saved."
-            ));
+            || (v["type"] == "response.incomplete"
+                && v["response"]["incomplete_details"]["reason"] == "max_output_tokens");
+        if v["type"] == "response.incomplete" && !output_limit {
+            return Err(anyhow!("Provider returned an incomplete reply."));
         }
         let mut usage = v["usage"].clone();
         if v["type"] == "message_start" {
@@ -177,6 +174,7 @@ impl Decoder {
         }
         Ok(Event {
             text: event_text(&self.protocol, &v).unwrap_or_default(),
+            output_limit,
             done: v["type"] == "message_stop"
                 || v["type"] == "response.completed"
                 || v["type"] == "message-end"
@@ -287,8 +285,21 @@ mod tests {
     #[test]
     fn truncation_is_not_success() {
         let mut d = Decoder::new("anthropic");
-        assert!(d
-            .push(b"data: {\"delta\":{\"stop_reason\":\"max_tokens\"}}\n\n")
-            .is_err());
+        let events = d
+            .push(b"data: {\"delta\":{\"text\":\"partial\"}}\n\ndata: {\"delta\":{\"stop_reason\":\"max_tokens\"}}\n\n")
+            .unwrap();
+        assert_eq!(events[0].text, "partial");
+        assert!(events[1].output_limit);
+        assert!(!events[1].done);
+    }
+    #[test]
+    fn hidden_reasoning_exhaustion_is_distinct_from_visible_truncation() {
+        let mut decoder = Decoder::new("openai");
+        let events = decoder
+            .push(b"data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"hidden\"},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n")
+            .unwrap();
+        assert!(events[0].output_limit);
+        assert!(events[0].text.is_empty());
+        assert!(events[1].done);
     }
 }

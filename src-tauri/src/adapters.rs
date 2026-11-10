@@ -507,11 +507,37 @@ pub async fn stream(
         .ok();
     let mut reserved_cost = 0.;
 
-    for target in targets {
+    let mut attempts = 0;
+    let mut recovered = false;
+    let mut routes: std::collections::VecDeque<_> = targets
+        .iter()
+        .cloned()
+        .map(|target| (target, false))
+        .collect();
+    while let Some((mut target, concise)) = routes.pop_front() {
+        let mut prompt = messages.clone();
+        if concise {
+            if let Some(system) = prompt
+                .as_array_mut()
+                .and_then(|items| items.iter_mut().find(|m| m["role"] == "system"))
+            {
+                if let Some(text) = system["content"].as_str() {
+                    system["content"] = json!(format!(
+                        "{text}\nThe previous attempt ran out of output. Answer directly and concisely using the same evidence. Include essential facts and citations."
+                    ));
+                }
+            }
+            if let Some(level) = ["off", "none", "minimal", "low"]
+                .into_iter()
+                .find(|level| target.spec.reasoning.iter().any(|v| v == level))
+            {
+                target.reasoning = Some(level.into());
+            }
+        }
         if cancel.is_cancelled() {
             return Err(anyhow!("Stopped"));
         }
-        let input = input_tokens(&messages, &target.spec.model);
+        let input = input_tokens(&prompt, &target.spec.model);
         if input + target.spec.output.unwrap_or(4000).min(16000) + 1024
             > target.spec.context.unwrap_or(8192)
         {
@@ -536,7 +562,8 @@ pub async fn stream(
             }
             reserved_cost += cost;
         }
-        let response = request(platform, target, messages.clone(), false, true, cancel).await;
+        attempts += 1;
+        let response = request(platform, &target, prompt, false, true, cancel).await;
         let (response, cid) = match response {
             Ok(v) => v,
             Err(e) => {
@@ -547,7 +574,7 @@ pub async fn stream(
         let protocol = st(&target.provider, "protocol");
         if protocol == "replicate" {
             let value = serde_json::from_slice(&network::bounded(response, 2_000_000).await?)?;
-            let value = replicate_prediction(platform, target, value, cancel, &mut delta).await?;
+            let value = replicate_prediction(platform, &target, value, cancel, &mut delta).await?;
             return Ok((
                 replicate_output(&value)?,
                 json!({"provider":target.spec.provider,"model":target.spec.model,"credential":cid,"metrics":value["metrics"],"estimated_cost":null}),
@@ -556,6 +583,7 @@ pub async fn stream(
         let mut stream = response.bytes_stream();
         let mut decoder = crate::wire::Decoder::new(protocol);
         let (mut content, mut done, mut usage) = (String::new(), false, json!({}));
+        let mut output_limit = false;
         loop {
             let next = tokio::select! {_=cancel.cancelled()=>return Err(anyhow!("Stopped")),b=stream.next()=>b};
             let Some(bytes) = next else { break };
@@ -566,6 +594,7 @@ pub async fn stream(
             })?;
             for event in decoder.push(&bytes)? {
                 done |= event.done;
+                output_limit |= event.output_limit;
                 if let Some(values) = event.usage.as_object() {
                     for (k, v) in values {
                         if !v.is_null() {
@@ -579,6 +608,30 @@ pub async fn stream(
                 }
             }
         }
+        if output_limit {
+            let free = target.spec.free
+                && routing::estimate(
+                    &target.spec,
+                    input,
+                    target.spec.output.unwrap_or(4000).min(16000),
+                ) == Some(0.);
+            if !content.is_empty() {
+                return Err(anyhow!(
+                    "Reply reached the output limit. Partial reply is saved."
+                ));
+            }
+            last = if concise {
+                anyhow!("The model exhausted its output budget again after a concise retry.")
+            } else {
+                anyhow!("The model exhausted its output budget before producing a reply.")
+            };
+            if !recovered && (free || spending_ceiling.is_some()) {
+                recovered = true;
+                routes.push_front((target, true));
+                continue;
+            }
+            return Err(last);
+        }
         if !done || content.is_empty() {
             return Err(anyhow!(
                 "Reply ended before completion. Partial reply is saved."
@@ -587,6 +640,8 @@ pub async fn stream(
         if !usage.is_object() {
             usage = json!({});
         }
+        usage["answer_requests"] = json!(attempts);
+        usage["output_limit_recovery"] = json!(concise);
         usage["provider"] = json!(target.spec.provider);
         usage["model"] = json!(target.spec.model);
         usage["credential"] = json!(cid);
