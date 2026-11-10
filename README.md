@@ -35,6 +35,8 @@ The existing Groq selection is the default for a fresh profile. To use OpenRoute
 
 ## Conversation and memory
 
+For the full memory lifecycle, retrieval rules, data model, and verification procedures, see the [LRA architecture and operations guide](docs/LRA.md).
+
 - **Conversation** includes streamed replies, Stop and Retry, model and search choices, attachments and source previews. Enter sends. Shift+Enter adds a line. Clear Chat hides older turns from the main view and keeps the underlying context, personal memories and searchable archive.
 - **Memories:** search personal statements, inspect their sources, correct or forget them. Conversation history searches the complete archive with dates, relevance sorting, surrounding messages and a jump to the original position.
 - **Settings** includes Providers, Personalization, Appearance, Models & routing, Memory and Data & privacy. Choose themes, routing, response preferences, learning and working-context controls. Choices persist.
