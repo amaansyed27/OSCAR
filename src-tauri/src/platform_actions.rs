@@ -21,7 +21,7 @@ impl Runtime {
                     .platform
                     .as_ref()
                     .unwrap()
-                    .discover(st(arg, "provider"))
+                    .discover_with(st(arg, "provider"), arg["credential"].as_str())
                     .await?
             }
             "saveProvider" => self.model().platform.as_ref().unwrap().save_provider(arg)?,

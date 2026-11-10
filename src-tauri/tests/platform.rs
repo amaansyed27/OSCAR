@@ -37,6 +37,75 @@ fn numbered_credentials_and_duplicates() {
     assert!(!all.to_string().contains("test-environment-key"));
     assert_eq!(std::fs::read(d.path().join(".env.local")).unwrap(), before);
 }
+
+#[test]
+fn task_ratings_override_overall_without_weakening_constraints() {
+    let mut a = Spec::manual("one", "general");
+    a.context = Some(32000);
+    a.quality = Some(95.);
+    let mut b = a.clone();
+    b.id = "specialist".into();
+    b.quality = Some(60.);
+    b.task_quality.insert("programming".into(), 99.);
+    let d = routing::decide("debug this Rust function", "off", false, false);
+    assert_eq!(
+        routing::rank(vec![a.clone(), b.clone()], "super", &d, 100, None).unwrap()[0].id,
+        "specialist"
+    );
+    assert!(routing::rank(vec![a, b], "super", &d, 100, Some(0.)).is_err());
+    let (_dir, p) = platform();
+    assert!(p
+        .register(&json!({"provider":"groq","model":"test","task_quality":{"programming":95}}))
+        .is_err());
+    let saved=p.register(&json!({"provider":"groq","model":"test","task_quality":{"programming":95},"evaluation_evidence":"Three coding fixtures, 2026-11-10"})).unwrap();
+    assert_eq!(saved["task_quality"]["programming"], 95.);
+}
+
+#[test]
+fn decision_model_cannot_override_search_off_or_vision() {
+    let original = routing::decide(
+        "Can you explain which of these options would be appropriate for my situation",
+        "off",
+        false,
+        false,
+    );
+    assert!(routing::ambiguous(
+        "Can you explain which of these options would be appropriate for my situation",
+        &original
+    ));
+    let refined = routing::classified(
+        &json!({"task":"research","complex":true,"search":true,"vision":true}),
+        &original,
+        "off",
+    )
+    .unwrap();
+    assert!(!refined.search);
+    assert!(!refined.vision);
+    assert!(routing::classified(
+        &json!({"task":"execute shell","complex":true,"search":true}),
+        &original,
+        "auto"
+    )
+    .is_err());
+    assert!(!routing::ambiguous("Hello", &original));
+}
+
+#[test]
+fn prediction_lifecycle_never_uses_foreign_urls_or_nontext_outputs() {
+    use oscar_core::adapters::{prediction_url, replicate_output};
+    assert_eq!(
+        prediction_url("https://api.replicate.com/v1", "abc123").unwrap(),
+        "https://api.replicate.com/v1/predictions/abc123"
+    );
+    for id in ["../keys", "https://evil.example", "a?b", "a/b", ""] {
+        assert!(prediction_url("https://api.replicate.com/v1", id).is_err());
+    }
+    assert_eq!(
+        replicate_output(&json!({"output":["one ","two"]})).unwrap(),
+        "one two"
+    );
+    assert!(replicate_output(&json!({"output":{"image":"file"}})).is_err());
+}
 #[test]
 fn arbitrary_protected_credentials_and_replacement() {
     let (d, p) = platform();
@@ -277,6 +346,22 @@ fn citation_and_conflict_guards() {
         &[],
     );
     assert!(!grounded.contains("https://"));
+}
+
+#[test]
+fn research_dedup_retains_document_identity_and_search_off() {
+    use oscar_core::research::{canonical_source, queries};
+    assert_eq!(
+        canonical_source("https://example.com/doc?id=1&utm_source=test#heading").unwrap(),
+        "https://example.com/doc?id=1"
+    );
+    assert_ne!(
+        canonical_source("https://example.com/doc?id=1").unwrap(),
+        canonical_source("https://example.com/doc?id=2").unwrap()
+    );
+    assert!(canonical_source("https://127.0.0.1/doc").is_err());
+    assert_eq!(queries("Rust versus Go", true), vec!["Rust", "Go"]);
+    assert!(!routing::decide("research current news", "off", false, false).search);
 }
 #[test]
 fn stale_free_and_image_constraints() {

@@ -847,7 +847,7 @@ button:active:not(:disabled) {
 .sidebar nav button[aria-current="page"] {
   background: var(--hover);
 }
-.settings-open > header {
+.workspace.settings-open > header {
   display: none;
 }
 #page-settings.settings-layout {
@@ -855,77 +855,357 @@ button:active:not(:disabled) {
   overflow: hidden;
 }
 .settings-sidebar {
-  width: 220px;
+  width: 218px;
   flex-shrink: 0;
   background: var(--sidebar);
   border-right: 1px solid var(--border);
-  padding: 25px 16px;
+  padding: 32px 16px;
   overflow-y: auto;
-  scrollbar-width: thin;
 }
 .settings-sidebar h1 {
-  font-size: 18px;
-  margin: 0 6px 20px;
+  font-size: 23px;
+  margin: 0 8px 18px;
+  line-height: 1.2;
+  font-weight: 600;
 }
 .settings-sidebar input {
   width: 100%;
   min-width: 0;
-  background: var(--surface);
-  border-color: transparent;
+  background: var(--canvas);
+  border-color: var(--border);
   border-radius: 8px;
-  margin-bottom: 20px;
-  font-size: 13px;
-}
-.settings-sidebar input:focus-visible {
-  border-color: var(--focus);
+  margin-bottom: 18px;
+  font-size: 14px;
 }
 .settings-sidebar nav {
   gap: 4px;
 }
 .settings-sidebar nav button {
-  padding: 9px 10px;
+  min-height: 42px;
+  padding: 8px 11px;
   font-size: 14px;
-  white-space: nowrap;
+  text-align: left;
+  color: var(--muted);
+  border: 1px solid transparent;
+}
+.settings-sidebar nav button svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
 }
 .settings-sidebar nav span {
-  display: inline !important;
+  display: inline;
   opacity: 1;
   max-width: none;
 }
+.settings-sidebar nav button[aria-current="page"] {
+  color: var(--ink);
+  background: var(--canvas);
+  border-color: var(--border);
+  font-weight: 600;
+}
 .settings-sidebar #settings-empty {
-  padding: 8px 6px;
+  padding: 8px;
 }
 .settings-content {
   min-width: 0;
   flex: 1;
   overflow-y: auto;
-  padding: 40px 44px 60px;
+  padding: 40px clamp(20px, 5vw, 78px) 60px;
   scrollbar-gutter: stable;
 }
 .setting-panel {
-  width: min(100%, 760px);
+  width: min(100%, 740px);
   margin: 0 auto;
 }
-.setting-panel h2 {
-  font-size: 22px;
-  margin: 0 0 28px;
-  font-weight: 400;
+.settings-heading {
+  margin: 0 0 25px;
 }
-.setting-panel .setting-row {
-  padding: 19px 0;
-  align-items: center;
-}
-.setting-panel .secondary {
-  max-width: 450px;
-}
-.setting-panel > p {
-  font-size: 14px;
-  margin: 0 0 16px;
-}
-.settings-sidebar nav button[aria-current="page"] {
-  color: var(--ink);
-  background: var(--hover);
+.settings-heading h2 {
+  font-size: clamp(26px, 3vw, 34px);
+  line-height: 1.14;
+  letter-spacing: -0.025em;
+  margin: 0 0 8px;
   font-weight: 600;
+}
+.settings-heading p,
+.settings-hint,
+.settings-card-heading p {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0;
+}
+.settings-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin: 0 0 14px;
+  overflow: clip;
+}
+.settings-card-heading {
+  padding: 15px 19px 13px;
+  border-bottom: 1px solid var(--border);
+  background: var(--sidebar);
+}
+.setting-panel h3 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0;
+}
+.settings-card-heading p {
+  margin-top: 4px;
+}
+.settings-card .setting-row {
+  border: 0;
+  align-items: center;
+  padding: 15px 19px;
+  gap: 14px;
+}
+.settings-card .setting-row + .setting-row {
+  border-top: 1px solid var(--border);
+}
+.settings-card .setting-row > div {
+  flex: 1;
+  min-width: 0;
+}
+.settings-card .setting-row label,
+.settings-card .setting-row strong {
+  font-weight: 600;
+}
+.settings-card .setting-row .settings-hint {
+  margin-top: 4px;
+}
+.settings-card .setting-row > :is(select, input:not([type="checkbox"])) {
+  width: min(44%, 252px);
+  min-width: 0;
+}
+.settings-card .setting-row > input[type="number"] {
+  padding: 7px 11px;
+  border: 1px solid var(--strong);
+  border-radius: 7px;
+  background: var(--canvas);
+}
+.settings-card .setting-row > button {
+  flex-shrink: 0;
+}
+.routing-description {
+  padding: 0 19px 15px;
+}
+.settings-fields {
+  display: grid;
+  gap: 13px;
+  padding: 16px 19px;
+}
+.personalization-form {
+  display: block;
+  margin: 0;
+}
+.personalization-form > .settings-card:first-child > .settings-fields,
+.personalization-form .settings-disclosure > .settings-fields {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+}
+.settings-form .settings-card label {
+  font-weight: 600;
+}
+.settings-form textarea {
+  resize: vertical;
+}
+.settings-save,
+.settings-form-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.settings-save {
+  justify-content: flex-end;
+}
+.settings-save p {
+  margin: 0;
+  color: var(--muted);
+}
+.setting-panel details.settings-disclosure {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.setting-panel details.settings-card {
+  border: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.settings-disclosure > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 12px 19px;
+}
+.settings-disclosure[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+.settings-disclosure > .settings-hint,
+.settings-disclosure > .inline-controls,
+.settings-disclosure > .settings-form,
+.settings-disclosure > .settings-check,
+.settings-disclosure > #waterfall-list {
+  margin: 12px 19px;
+}
+.settings-card :is(input, select, textarea) {
+  max-width: 100%;
+}
+.theme-preview {
+  margin: 18px 19px 0;
+  width: min(100% - 38px, 380px);
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.theme-preview-bar {
+  height: 22px;
+  padding: 7px 9px;
+  display: flex;
+  gap: 4px;
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--border);
+}
+.theme-preview-bar i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--strong);
+}
+.theme-preview-main {
+  display: flex;
+  height: 108px;
+}
+.theme-preview-rail {
+  width: 38px;
+  display: grid;
+  gap: 7px;
+  align-content: start;
+  justify-items: center;
+  padding-top: 9px;
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+}
+.theme-preview-rail img {
+  width: 17px;
+}
+.theme-preview-rail i {
+  width: 12px;
+  height: 8px;
+  border-radius: 3px;
+  background: var(--hover);
+}
+.theme-preview-chat {
+  display: grid;
+  width: 100%;
+  align-content: center;
+  gap: 9px;
+  padding: 14px 18px;
+}
+.theme-preview-chat i {
+  height: 6px;
+  width: 64%;
+  border-radius: 5px;
+  background: var(--hover);
+}
+.theme-preview-chat i:first-child {
+  justify-self: end;
+  width: 42%;
+  height: 15px;
+}
+.theme-preview-chat i:last-child {
+  width: 100%;
+  height: 18px;
+  border: 1px solid var(--border);
+  background: transparent;
+  margin-top: 9px;
+}
+.provider-toolbar,
+.provider-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.provider-toolbar {
+  padding: 16px 19px;
+  background: var(--sidebar);
+}
+.provider-selection {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  flex: 1 1 230px;
+}
+.provider-selection label {
+  font-weight: 600;
+}
+.provider-selection select {
+  width: min(100%, 300px);
+}
+.provider-tabs {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 7px 13px;
+  border-block: 1px solid var(--border);
+}
+.provider-tabs button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+}
+.provider-pane {
+  padding: 16px 19px 12px;
+}
+.provider-section-heading {
+  margin: 0 0 12px;
+}
+.provider-section-heading p {
+  margin-top: 4px;
+}
+.provider-pane #model-search {
+  width: 100%;
+}
+.setting-panel .provider-pane details.settings-disclosure {
+  border-top: 1px solid var(--border);
+}
+.provider-pane .settings-disclosure > summary {
+  padding-inline: 0;
+}
+.provider-pane .settings-disclosure > .settings-form {
+  margin-inline: 0;
+}
+.settings-feedback {
+  margin: 14px 19px 0;
+  padding: 9px 12px;
+  border-left: 2px solid var(--focus);
+  background: var(--surface);
+  font-size: 14px;
+}
+.settings-empty-state {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 12px 0;
+}
+.settings-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings-form label.settings-check {
+  display: flex;
+  justify-content: space-between;
+}
+.settings-test-key {
+  display: grid;
+  gap: 6px;
+  margin: 12px 19px;
+  max-width: 310px;
 }
 #sidebar-tooltip {
   position: fixed;
@@ -971,47 +1251,46 @@ body,
   }
   .settings-sidebar {
     width: 100%;
-    padding: 18px 22px 0;
+    padding: 15px 20px 12px;
     border-right: 0;
     border-bottom: 1px solid var(--border);
-    overflow: visible;
   }
   .settings-sidebar h1 {
-    margin: 0 0 14px;
+    margin: 0 0 10px;
+    font-size: 19px;
   }
   .settings-sidebar input {
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     max-width: 400px;
   }
   .settings-sidebar nav {
-    flex-direction: row;
-    gap: 6px;
-    overflow-x: auto;
-    padding-bottom: 12px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .settings-sidebar nav button {
-    flex-shrink: 0;
-    gap: 7px;
-    padding: 7px 10px;
+    min-height: 34px;
+    gap: 6px;
+    padding: 5px 8px;
   }
   .settings-content {
-    padding: 24px 22px 40px;
-  }
-  .setting-panel h2 {
-    font-size: 20px;
-    margin-bottom: 17px;
-  }
-  .sidebar .identity span,
-  .sidebar nav span {
-    display: inline-block;
-  }
-  .sidebar .identity {
-    padding-left: 8px;
-  }
-  .sidebar nav button {
-    padding: 9px 10px;
+    padding: 22px 20px 36px;
   }
 }
+@media (max-width: 650px) {
+  .settings-sidebar nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .settings-card .setting-row {
+    flex-wrap: wrap;
+  }
+  .settings-card .setting-row > div {
+    flex-basis: 100%;
+  }
+  .settings-card .setting-row > :is(select, input:not([type="checkbox"])) {
+    width: 100%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;
@@ -1299,16 +1578,6 @@ body.collapsed .sidebar-top .identity {
 .settings-form input[type="checkbox"] {
   width: 18px;
 }
-.setting-panel h3 {
-  font-size: 15px;
-  font-weight: 400;
-  margin: 26px 0 12px;
-}
-.setting-panel details {
-  margin: 18px 0;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-}
 summary {
   cursor: pointer;
 }
@@ -1523,4 +1792,14 @@ summary {
 }
 .rich-component label {
   flex-wrap: wrap;
+}
+
+@media (max-width: 650px) {
+  .provider-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .provider-row > .inline-controls {
+    grid-column: 1;
+    grid-row: auto;
+  }
 }

@@ -8,18 +8,47 @@ pub struct Research {
     pub sources: Vec<Value>,
     pub warnings: Vec<String>,
 }
-fn queries(text: &str, complex: bool) -> Vec<String> {
+pub fn queries(text: &str, complex: bool) -> Vec<String> {
     let mut q = vec![truncate(text, 450)];
     if complex {
+        let comparison =
+            re(r"(?i)^\s*compare\s+(.+?)\s+and\s+(.+?)(?:\s+using\b|[.?]|$)").captures(text);
         if let Some((a, b)) = text
             .split_once(" versus ")
             .or_else(|| text.split_once(" vs "))
         {
             q = vec![truncate(a, 350), truncate(b, 350)];
+        } else if let Some(parts) = comparison {
+            q = vec![
+                format!("{} official documentation", &parts[1]),
+                format!("{} official documentation", &parts[2]),
+            ];
         }
     }
     q.truncate(3);
     q
+}
+fn primary_host(host: &str) -> bool {
+    host.starts_with("docs.")
+        || host.starts_with("doc.")
+        || host.starts_with("developer")
+        || host.ends_with(".gov")
+        || ["go.dev", "arxiv.org"].contains(&host)
+}
+pub fn canonical_source(raw: &str) -> Result<String> {
+    let mut url = reqwest::Url::parse(raw).map_err(|_| anyhow!("Invalid source URL"))?;
+    url.set_fragment(None);
+    let pairs: Vec<(String, String)> = url
+        .query_pairs()
+        .filter(|(key, _)| !key.starts_with("utm_") && !["fbclid", "gclid"].contains(&key.as_ref()))
+        .map(|(k, v)| (k.into_owned(), v.into_owned()))
+        .collect();
+    url.set_query(None);
+    network::cloud_url(url.as_str())?;
+    if !pairs.is_empty() {
+        url.query_pairs_mut().extend_pairs(pairs);
+    }
+    Ok(url.to_string())
 }
 pub async fn research(
     platform: &Arc<Platform>,
@@ -54,9 +83,7 @@ pub async fn research(
             reqwest::Url::parse(st(r, "url"))
                 .ok()
                 .and_then(|u| u.host_str().map(String::from))
-                .is_some_and(|h| {
-                    h.starts_with("docs.") || h.starts_with("developer") || h.ends_with(".gov")
-                })
+                .is_some_and(|h| primary_host(&h))
         })
         .count();
     let followup = decision.complex && results.len() < 3 && primary_count == 0;
@@ -77,24 +104,18 @@ pub async fn research(
     let mut sources = vec![];
     for result in results {
         for row in result["results"].as_array().into_iter().flatten() {
-            let url = st(row, "url");
+            let Ok(canonical) = canonical_source(st(row, "url")) else {
+                continue;
+            };
+            let url = canonical.as_str();
             let Ok(parsed) = network::cloud_url(url.split('?').next().unwrap_or(url)) else {
                 continue;
             };
-            let canonical = format!(
-                "{}{}",
-                parsed.host_str().unwrap_or(""),
-                parsed.path().trim_end_matches('/')
-            );
-            if !seen.insert(canonical) {
+            if !seen.insert(canonical.clone()) {
                 continue;
             }
             let host = parsed.host_str().unwrap_or("");
-            let primary = host.starts_with("docs.")
-                || host.starts_with("developer")
-                || host.ends_with(".gov")
-                || host.ends_with(".edu")
-                || host == "arxiv.org";
+            let primary = primary_host(host);
             let date = row["published_date"].as_str().unwrap_or("");
             let published = chrono::DateTime::parse_from_rfc3339(date)
                 .ok()

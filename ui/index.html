@@ -310,61 +310,70 @@
           />
           <nav aria-label="Settings categories">
             <button
-              data-settings="providers"
-              data-search="AI providers keys credentials cloud endpoints models"
-            >
-              <svg viewBox="0 0 24 24">
-                <path d="M7 7h10v10H7zM3 12h4m10 0h4M12 3v4m0 10v4" /></svg
-              ><span>AI Providers</span>
-            </button>
-            <button
-              data-settings="personalization"
-              data-search="personality profile name custom instructions tone depth"
-            >
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 21v-3c0-7 16-7 16 0v3" /></svg
-              ><span>Personalization</span>
-            </button>
-            <button
+              type="button"
               data-settings="appearance"
-              data-search="theme light dark system appearance"
+              data-search="theme light dark system colors"
               aria-controls="settings-appearance"
-              aria-current="page"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="4" />
-                <path
-                  d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"
-                /></svg
-              ><span>Appearance</span></button
-            ><button
+                <rect x="3" y="4" width="18" height="13" rx="2" />
+                <path d="M8 21h8m-4-4v4" /></svg
+              ><span>Appearance</span>
+            </button>
+            <button
+              type="button"
               data-settings="model"
-              data-search="model provider groq context compact balanced extended"
+              data-search="default model ai routing free efficient super context fallback spending ceiling cost search credits"
               aria-controls="settings-model"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="5" y="5" width="14" height="14" rx="3" />
-                <path
-                  d="M9 9h6v6H9zM9 2v3m6-3v3M9 19v3m6-3v3M2 9h3m-3 6h3m14-6h3m-3 6h3"
-                /></svg
-              ><span>Model</span></button
-            ><button
+                <path d="M5 5h14M5 12h14M5 19h14" />
+                <circle cx="9" cy="5" r="2" />
+                <circle cx="15" cy="12" r="2" />
+                <circle cx="9" cy="19" r="2" /></svg
+              ><span>Models & routing</span>
+            </button>
+            <button
+              type="button"
+              data-settings="providers"
+              data-search="ai providers keys credentials api key cloud endpoint connection models"
+              aria-controls="settings-providers"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 4v5m8-5v5M6 9h12v3a6 6 0 0 1-6 6v3m-6-9V9" /></svg
+              ><span>Providers</span>
+            </button>
+            <button
+              type="button"
+              data-settings="personalization"
+              data-search="preferences personality profile name custom instructions tone depth interactive responses"
+              aria-controls="settings-personalization"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M5 20v-1a7 7 0 0 1 14 0v1" /></svg
+              ><span>Personalization</span>
+            </button>
+            <button
+              type="button"
               data-settings="memory"
-              data-search="memory learn preferences reset working context"
+              data-search="learn personal preferences reset working context"
               aria-controls="settings-memory"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m12 3 9 5-9 5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5" /></svg
-              ><span>Memory</span></button
-            ><button
+                <rect x="4" y="4" width="16" height="16" rx="3" />
+                <path d="M8 9h8M8 13h8M8 17h4" /></svg
+              ><span>Memory</span>
+            </button>
+            <button
+              type="button"
               data-settings="privacy"
-              data-search="data privacy history storage encryption"
+              data-search="history storage encryption privacy data web search Tavily"
               aria-controls="settings-privacy"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z" />
-                <path d="m8 12 3 3 5-6" /></svg
+                <rect x="5" y="10" width="14" height="11" rx="2" />
+                <path d="M8 10V7a4 4 0 1 1 8 0v3m-4 4v3" /></svg
               ><span>Data & privacy</span>
             </button>
           </nav>
@@ -374,263 +383,417 @@
         </aside>
         <div class="settings-content">
           <section class="setting-panel" id="settings-providers" hidden>
-            <h2>AI Providers</h2>
-            <div class="inline-controls">
-              <label class="sr-only" for="provider-select">Provider</label
-              ><select id="provider-select"></select
-              ><button id="add-provider" class="outlined">Add provider</button>
+            <div class="settings-heading">
+              <h2>Providers</h2>
+              <p>
+                Connect an AI service and choose which models appear in the
+                composer.
+              </p>
             </div>
-            <p id="provider-status" role="status" class="secondary"></p>
-            <div class="inline-controls">
-              <button id="discover-models" class="outlined">
-                Refresh models / validate</button
-              ><a id="provider-docs" target="_blank" rel="noreferrer"
-                >API documentation ↗</a
-              >
+            <div class="settings-card provider-workspace">
+              <div class="provider-toolbar">
+                <div class="provider-selection">
+                  <label for="provider-select">Provider</label
+                  ><select id="provider-select"></select>
+                  <p id="provider-summary" class="settings-hint"></p>
+                </div>
+                <button id="add-provider" class="outlined">
+                  Add custom provider
+                </button>
+              </div>
+              <nav class="provider-tabs" aria-label="Provider settings">
+                <button
+                  type="button"
+                  data-provider-tab="access"
+                  aria-pressed="true"
+                >
+                  Access
+                </button>
+                <button
+                  type="button"
+                  data-provider-tab="models"
+                  aria-pressed="false"
+                >
+                  Models
+                </button>
+                <button
+                  type="button"
+                  data-provider-tab="connection"
+                  aria-pressed="false"
+                >
+                  Connection
+                </button>
+              </nav>
+              <p
+                id="provider-status"
+                role="status"
+                class="settings-feedback"
+                hidden
+              ></p>
+              <div class="provider-pane" data-provider-pane="access">
+                <div class="provider-section-heading">
+                  <div>
+                    <h3>API keys</h3>
+                    <p class="settings-hint">
+                      Manage the credentials OSCAR can use for this service.
+                    </p>
+                  </div>
+                </div>
+                <div id="credential-list"></div>
+                <details id="credential-editor" class="settings-disclosure">
+                  <summary>Add an API key</summary>
+                  <form id="credential-form" class="settings-form">
+                    <label
+                      >Nickname<input
+                        name="nickname"
+                        maxlength="80"
+                        placeholder="Personal key"
+                        required /></label
+                    ><label
+                      >API key or credential<input
+                        name="secret"
+                        type="password"
+                        autocomplete="new-password"
+                        required
+                        placeholder="Stored with Windows protection" /></label
+                    ><button class="primary">Save key</button>
+                  </form>
+                </details>
+              </div>
+              <div class="provider-pane" data-provider-pane="models" hidden>
+                <div class="provider-section-heading">
+                  <div>
+                    <h3>Available models</h3>
+                    <p class="settings-hint">
+                      Enable the models you want to use.
+                    </p>
+                  </div>
+                  <button id="discover-models" class="outlined">
+                    Refresh models
+                  </button>
+                </div>
+                <label class="sr-only" for="model-search">Search models</label>
+                <input
+                  id="model-search"
+                  type="search"
+                  placeholder="Find a model"
+                />
+                <div id="provider-models"></div>
+                <details class="settings-disclosure">
+                  <summary>Add or edit a model</summary>
+                  <form id="model-form" class="settings-form">
+                    <label
+                      >Model ID<input
+                        name="model"
+                        required
+                        maxlength="200" /></label
+                    ><label
+                      >Context tokens<input
+                        name="context"
+                        type="number"
+                        min="2048" /></label
+                    ><label
+                      >Output tokens<input
+                        name="output"
+                        type="number"
+                        min="1" /></label
+                    ><label
+                      >Vision verified<select name="vision">
+                        <option value="">Unknown</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                      </select></label
+                    ><label
+                      >Streaming verified<select name="streaming">
+                        <option value="">Unknown</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                      </select></label
+                    ><label
+                      >Input USD / million tokens<input
+                        name="input_price"
+                        type="number"
+                        min="0"
+                        step="any" /></label
+                    ><label
+                      >Output USD / million tokens<input
+                        name="output_price"
+                        type="number"
+                        min="0"
+                        step="any" /></label
+                    ><label
+                      >Evaluated quality score (0–100)<input
+                        name="quality"
+                        type="number"
+                        min="0"
+                        max="100" /></label
+                    ><label
+                        >Evaluation task<select name="evaluation_task"><option value="">Overall only</option value="programming">Programming</option><option value="mathematics">Mathematics</option><option value="research">Research</option><option value="conversation">Conversation</option><option value="document analysis">Documents</option><option value="image analysis">Images</option><option value="complex reasoning">Complex reasoning</option><option value="multi-step tasks">Planning</option><option value="knowledge questions">Knowledge</option></select></label
+                      ><label>Task score (0–100)<input name="task_score" type="number" min="0" max="100" /></label
+                      ><label>Evaluation evidence<input name="evaluation_evidence" maxlength="2000" placeholder="Benchmark, date and result" /></label
+                      ><label
+                        >Documented reasoning levels<input
+                        name="reasoning"
+                        placeholder="low, medium, high" /></label
+                    ><label
+                      >Reasoning API parameter<select
+                        name="reasoning_parameter"
+                      >
+                        <option value="reasoning_effort">
+                          reasoning_effort
+                        </option>
+                        <option value="reasoning.effort">
+                          Responses reasoning.effort
+                        </option>
+                        <option value="reasoning.effort.openrouter">
+                          OpenRouter reasoning.effort
+                        </option>
+                        <option value="ollama.think">Ollama think</option>
+                        <option value="bedrock.thinking">
+                          Bedrock Claude thinking
+                        </option>
+                        <option value="thinking.budget">
+                          Gemini thinking budget
+                        </option>
+                        <option value="thinking.level">
+                          Gemini thinking level
+                        </option>
+                        <option value="thinking.adaptive">
+                          Claude adaptive thinking
+                        </option>
+                        <option value="thinking.enabled">
+                          Claude enabled thinking
+                        </option>
+                      </select></label
+                    ><button class="primary">Save model</button>
+                  </form>
+                </details>
+                <details class="settings-disclosure">
+                  <summary>Connection test options</summary>
+                  <label class="settings-test-key">
+                    Key to test
+                    <select id="test-credential"></select>
+                  </label>
+                  <label class="settings-check"
+                    ><input id="allow-billable-test" type="checkbox" /> Allow
+                    paid model tests</label
+                  >
+                  <p class="settings-hint">
+                    A test may use up to 256 output tokens.
+                  </p>
+                </details>
+              </div>
+              <div class="provider-pane" data-provider-pane="connection" hidden>
+                <div class="provider-section-heading">
+                  <div>
+                    <h3 id="connection-title">Connection details</h3>
+                    <p class="settings-hint">
+                      Use the settings documented by your provider.
+                    </p>
+                  </div>
+                  <a id="provider-docs" target="_blank" rel="noreferrer"
+                    >Provider docs ↗</a
+                  >
+                </div>
+                <form id="provider-form" class="settings-form">
+                  <label>Name<input name="name" required /></label
+                  ><label
+                    >Protocol<select name="protocol">
+                      <option value="openai">OpenAI Chat</option>
+                      <option value="responses">OpenAI Responses</option>
+                      <option value="anthropic">Anthropic Messages</option>
+                      <option value="gemini">Google Gemini</option>
+                      <option value="ollama">Ollama Cloud</option>
+                      <option value="cohere">Cohere v2</option>
+                      <option value="cloudflare">Cloudflare</option>
+                      <option value="bedrock">Bedrock Converse</option>
+                      <option value="replicate">Replicate</option>
+                    </select></label
+                  ><label
+                    >HTTPS base URL<input
+                      name="base"
+                      type="url"
+                      required /></label
+                  ><label
+                    >Authentication<select name="auth">
+                      <option value="bearer">Bearer token</option>
+                      <option value="anthropic-key">Anthropic key</option>
+                      <option value="google-key">Google API key</option>
+                      <option value="azure-key">Azure API key</option>
+                      <option value="api-key">Api-Key</option>
+                      <option value="account-token">
+                        Cloudflare API token
+                      </option>
+                      <option value="bedrock-key-or-iam">
+                        Bedrock key or IAM credentials
+                      </option>
+                      <option value="oauth-project">
+                        Google OAuth or service account
+                      </option>
+                      <option value="configurable">Provider default</option>
+                      <option value="none">No authentication</option>
+                    </select></label
+                  ><label
+                    >Account / project options<input
+                      name="account"
+                      placeholder="Cloudflare account ID" /></label
+                  ><label>Region<input name="region" /></label
+                  ><label
+                    >Discovery path<input
+                      name="discovery"
+                      placeholder="models" /></label
+                  ><label
+                    >Non-secret connection headers (JSON)<textarea
+                      name="headers"
+                      rows="3"
+                      placeholder='{"x-project-id":"project"}'
+                    ></textarea>
+                  </label>
+                  <div class="settings-form-actions">
+                    <button class="primary">Save connection</button
+                    ><button id="cancel-provider" type="button" hidden>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
-            <h3>Credentials</h3>
-            <div id="credential-list"></div>
-            <form id="credential-form" class="settings-form">
-              <label
-                >Nickname<input
-                  name="nickname"
-                  maxlength="80"
-                  placeholder="Personal key"
-                  required /></label
-              ><label
-                >Credential<input
-                  name="secret"
-                  type="password"
-                  autocomplete="new-password"
-                  required
-                  placeholder="Stored with Windows protection" /></label
-              ><button class="outlined">Save credential</button>
-            </form>
-            <details>
-              <summary>Connection options</summary>
-              <form id="provider-form" class="settings-form">
-                <label>Name<input name="name" required /></label
-                ><label
-                  >Protocol<select name="protocol">
-                    <option value="openai">OpenAI Chat</option>
-                    <option value="responses">OpenAI Responses</option>
-                    <option value="anthropic">Anthropic Messages</option>
-                    <option value="gemini">Google Gemini</option>
-                    <option value="ollama">Ollama Cloud</option>
-                    <option value="cohere">Cohere v2</option>
-                    <option value="cloudflare">Cloudflare</option>
-                    <option value="bedrock">Bedrock Converse</option>
-                    <option value="replicate">Replicate</option>
-                  </select></label
-                ><label
-                  >HTTPS base URL<input
-                    name="base"
-                    type="url"
-                    required /></label
-                ><label
-                  >Authentication<select name="auth">
-                    <option value="bearer">Bearer token</option>
-                    <option value="anthropic-key">Anthropic key</option>
-                    <option value="google-key">Google API key</option>
-                    <option value="azure-key">Azure API key</option>
-                    <option value="api-key">Api-Key</option>
-                    <option value="none">No authentication</option>
-                  </select></label
-                ><label
-                  >Account / project options<input
-                    name="account"
-                    placeholder="Cloudflare account ID" /></label
-                ><label>Region<input name="region" /></label
-                ><label
-                  >Discovery path<input
-                    name="discovery"
-                    placeholder="models" /></label
-                ><label
-                  >Non-secret connection headers (JSON)<textarea
-                    name="headers"
-                    rows="3"
-                    placeholder='{"x-project-id":"project"}'
-                  ></textarea></label
-                ><button class="outlined">Save connection</button>
-              </form>
-            </details>
-            <h3>Models</h3>
-            <label class="secondary"
-              ><input id="allow-billable-test" type="checkbox" /> Allow
-              potentially billable connection tests (up to 256 output tokens per
-              test)</label
-            >
-            <label class="sr-only" for="model-search">Search models</label
-            ><input
-              id="model-search"
-              type="search"
-              placeholder="Search available models"
-            />
-            <div id="provider-models"></div>
-            <details>
-              <summary>Register a model / capability overrides</summary>
-              <form id="model-form" class="settings-form">
-                <label
-                  >Model ID<input
-                    name="model"
-                    required
-                    maxlength="200" /></label
-                ><label
-                  >Context tokens<input
-                    name="context"
-                    type="number"
-                    min="2048" /></label
-                ><label
-                  >Output tokens<input
-                    name="output"
-                    type="number"
-                    min="1" /></label
-                ><label
-                  >Vision verified<select name="vision">
-                    <option value="">Unknown</option>
-                    <option value="true">Yes</option>
-                    <option value="false">No</option>
-                  </select></label
-                ><label
-                  >Streaming verified<select name="streaming">
-                    <option value="">Unknown</option>
-                    <option value="true">Yes</option>
-                    <option value="false">No</option>
-                  </select></label
-                ><label
-                  >Input USD / million tokens<input
-                    name="input_price"
-                    type="number"
-                    min="0"
-                    step="any" /></label
-                ><label
-                  >Output USD / million tokens<input
-                    name="output_price"
-                    type="number"
-                    min="0"
-                    step="any" /></label
-                ><label
-                  >Evaluated quality score (0–100)<input
-                    name="quality"
-                    type="number"
-                    min="0"
-                    max="100" /></label
-                ><label
-                  >Documented reasoning levels<input
-                    name="reasoning"
-                    placeholder="low, medium, high" /></label
-                ><label
-                  >Reasoning API parameter<select name="reasoning_parameter">
-                    <option value="reasoning_effort">reasoning_effort</option>
-                    <option value="reasoning.effort">
-                      Responses reasoning.effort
-                    </option>
-                    <option value="reasoning.effort.openrouter">
-                      OpenRouter reasoning.effort
-                    </option>
-                    <option value="ollama.think">Ollama think</option>
-                    <option value="bedrock.thinking">
-                      Bedrock Claude thinking
-                    </option>
-                    <option value="thinking.budget">
-                      Gemini thinking budget
-                    </option>
-                    <option value="thinking.level">
-                      Gemini thinking level
-                    </option>
-                    <option value="thinking.adaptive">
-                      Claude adaptive thinking
-                    </option>
-                    <option value="thinking.enabled">
-                      Claude enabled thinking
-                    </option>
-                  </select></label
-                ><button class="outlined">Save model</button>
-              </form>
-            </details>
           </section>
           <section class="setting-panel" id="settings-personalization" hidden>
-            <h2>Personalization</h2>
-            <form id="personalization-form" class="settings-form">
-              <label>Preferred name<input name="name" maxlength="100" /></label
-              ><label
-                >Background, occupation and interests<textarea
-                  name="background"
-                  rows="3"
-                  maxlength="2000"
-                ></textarea></label
-              ><label
-                >Projects and preferences<textarea
-                  name="projects"
-                  rows="3"
-                  maxlength="2000"
-                ></textarea></label
-              ><label
-                >What OSCAR should know<textarea
-                  name="profile"
-                  rows="3"
-                  maxlength="3000"
-                ></textarea></label
-              ><label
-                >How OSCAR should respond<textarea
-                  name="instructions"
-                  rows="3"
-                  maxlength="3000"
-                ></textarea>
-              </label>
-              <label
-                >Style<select name="style">
-                  <option>Default</option>
-                  <option>Direct</option>
-                  <option>Professional</option>
-                  <option>Friendly</option>
-                  <option>Analytical</option>
-                </select></label
-              >
-              <label
-                >Response length<select name="length">
-                  <option>balanced</option>
-                  <option>concise</option>
-                  <option>detailed</option>
-                </select></label
-              >
-              <label
-                >Warmth<select name="warmth">
-                  <option>balanced</option>
-                  <option>reserved</option>
-                  <option>warm</option>
-                </select></label
-              ><label
-                >Enthusiasm<select name="enthusiasm">
-                  <option>restrained</option>
-                  <option>balanced</option>
-                  <option>enthusiastic</option>
-                </select></label
-              ><label
-                >Humor<select name="humor">
-                  <option>restrained</option>
-                  <option>none</option>
-                  <option>playful</option>
-                </select></label
-              ><label
-                >Expressiveness<select name="expressiveness">
-                  <option>balanced</option>
-                  <option>minimal</option>
-                  <option>expressive</option>
-                </select></label
-              ><label
-                >Emoji frequency<select name="emoji">
-                  <option>rare</option>
-                  <option>never</option>
-                  <option>occasionally</option>
-                </select></label
-              ><label
-                >Interactive responses<input
-                  name="rich_ui"
-                  type="checkbox"
-                  checked /></label
-              ><button class="outlined">Save preferences</button>
-              <p id="personalization-status" role="status"></p>
+            <div class="settings-heading">
+              <h2>Personalization</h2>
+              <p>Tell OSCAR about yourself and how you like it to respond.</p>
+            </div>
+            <form
+              id="personalization-form"
+              class="settings-form personalization-form"
+            >
+              <section class="settings-card">
+                <div class="settings-card-heading">
+                  <h3>Response style</h3>
+                  <p>Set the defaults for your conversations.</p>
+                </div>
+                <div class="settings-fields">
+                  <label
+                    >Style<select name="style">
+                      <option>Default</option>
+                      <option>Direct</option>
+                      <option>Professional</option>
+                      <option>Friendly</option>
+                      <option>Analytical</option>
+                    </select></label
+                  >
+                  <label
+                    >Response length<select name="length">
+                      <option>balanced</option>
+                      <option>concise</option>
+                      <option>detailed</option>
+                    </select></label
+                  >
+                </div>
+                <details class="settings-disclosure">
+                  <summary>Fine-tune the tone</summary>
+                  <div class="settings-fields">
+                    <label
+                      >Warmth<select name="warmth">
+                        <option>balanced</option>
+                        <option>reserved</option>
+                        <option>warm</option>
+                      </select></label
+                    >
+                    <label
+                      >Enthusiasm<select name="enthusiasm">
+                        <option>restrained</option>
+                        <option>balanced</option>
+                        <option>enthusiastic</option>
+                      </select></label
+                    >
+                    <label
+                      >Humor<select name="humor">
+                        <option>restrained</option>
+                        <option>none</option>
+                        <option>playful</option>
+                      </select></label
+                    >
+                    <label
+                      >Expressiveness<select name="expressiveness">
+                        <option>balanced</option>
+                        <option>minimal</option>
+                        <option>expressive</option>
+                      </select></label
+                    >
+                    <label
+                      >Emoji frequency<select name="emoji">
+                        <option>rare</option>
+                        <option>never</option>
+                        <option>occasionally</option>
+                      </select></label
+                    >
+                  </div>
+                </details>
+              </section>
+              <section class="settings-card">
+                <div class="settings-card-heading">
+                  <h3>About you</h3>
+                  <p>Share context you want OSCAR to use when it answers.</p>
+                </div>
+                <div class="settings-fields">
+                  <label
+                    >Preferred name<input name="name" maxlength="100"
+                  /></label>
+                  <label
+                    >Background, occupation and interests<textarea
+                      name="background"
+                      rows="3"
+                      maxlength="2000"
+                    ></textarea>
+                  </label>
+                  <label
+                    >Projects and preferences<textarea
+                      name="projects"
+                      rows="3"
+                      maxlength="2000"
+                    ></textarea>
+                  </label>
+                </div>
+                <details class="settings-disclosure">
+                  <summary>Additional context</summary>
+                  <div class="settings-fields">
+                    <label
+                      >What OSCAR should know<textarea
+                        name="profile"
+                        rows="3"
+                        maxlength="3000"
+                      ></textarea>
+                    </label>
+                  </div>
+                </details>
+              </section>
+              <section class="settings-card">
+                <div class="settings-card-heading">
+                  <h3>Custom instructions</h3>
+                  <p>Describe how you want OSCAR to respond.</p>
+                </div>
+                <div class="settings-fields">
+                  <label
+                    >How OSCAR should respond<textarea
+                      name="instructions"
+                      rows="3"
+                      maxlength="3000"
+                    ></textarea>
+                  </label>
+                  <label class="settings-check"
+                    >Interactive responses<input
+                      name="rich_ui"
+                      type="checkbox"
+                      checked
+                  /></label>
+                </div>
+              </section>
+              <div class="settings-save">
+                <p id="personalization-status" role="status"></p>
+                <button class="primary">Save preferences</button>
+              </div>
             </form>
           </section>
           <section
@@ -638,109 +801,246 @@
             id="settings-appearance"
             aria-labelledby="heading-appearance"
           >
-            <h2 id="heading-appearance">Appearance</h2>
-            <div class="setting-row">
-              <label for="theme">Theme</label
-              ><select id="theme">
-                <option value="system">System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
+            <div class="settings-heading">
+              <h2 id="heading-appearance">Appearance</h2>
+              <p>Choose how OSCAR looks on this device.</p>
             </div>
+            <section class="settings-card">
+              <div class="settings-card-heading"><h3>Color theme</h3></div>
+              <div class="theme-preview" aria-hidden="true">
+                <div class="theme-preview-bar"><i></i><i></i><i></i></div>
+                <div class="theme-preview-main">
+                  <div class="theme-preview-rail">
+                    <img src="../assets/brand/oscar-orb.svg" alt="" /><i></i
+                    ><i></i>
+                  </div>
+                  <div class="theme-preview-chat"><i></i><i></i><i></i></div>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div>
+                  <label for="theme">Theme</label>
+                  <p class="settings-hint">
+                    System follows your Windows setting.
+                  </p>
+                </div>
+                <select id="theme">
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </div>
+            </section>
           </section>
+
           <section
             class="setting-panel"
             id="settings-model"
             aria-labelledby="heading-model"
             hidden
           >
-            <h2 id="heading-model">Model & routing</h2>
-            <div class="setting-row">
-              <label for="model">Selection</label
-              ><select id="model">
-                <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
-                <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
-              </select>
+            <div class="settings-heading">
+              <h2 id="heading-model">Models & routing</h2>
+              <p>
+                Choose what answers your messages and how OSCAR handles limits.
+              </p>
             </div>
-            <div class="setting-row">
-              <label for="input-budget">Conversation context</label
-              ><select id="input-budget">
-                <option value="8000">Compact</option>
-                <option value="16000">Balanced</option>
-                <option value="32000">Extended</option>
-              </select>
-            </div>
-            <label
-              >Potentially billable search credits per answer<select
-                id="search-paid-budget"
-              >
-                <option value="0">Included credits only</option>
-                <option value="1">Up to 1 credit</option>
-                <option value="2">Up to 2 credits</option>
-                <option value="3">Up to 3 credits</option>
-              </select></label
-            >
-            <h3>Manual fallback order</h3>
-            <p class="secondary">
-              Fallback happens before any answer text. A partial reply is never
-              combined with another model.
-            </p>
-            <div id="waterfall-list"></div>
-            <div class="inline-controls">
-              <select id="waterfall-model" aria-label="Fallback model"></select
-              ><button id="waterfall-add" class="outlined">Add fallback</button>
-            </div>
-            <label
-              >Per-answer spending ceiling (USD)<input
-                id="spending-ceiling"
-                type="number"
-                min="0"
-                step="any"
-                placeholder="No ceiling"
-            /></label>
+            <section class="settings-card">
+              <div class="settings-card-heading">
+                <h3>Model selection</h3>
+                <p>
+                  Applies to new messages unless you change the model in the
+                  composer.
+                </p>
+              </div>
+              <div class="setting-row">
+                <div>
+                  <label for="model">Default model</label>
+                </div>
+                <select id="model">
+                  <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
+                  <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+                </select>
+              </div>
+              <p
+                id="routing-description"
+                class="settings-hint routing-description"
+              ></p>
+            </section>
+            <section class="settings-card">
+              <div class="settings-card-heading"><h3>Conversation</h3></div>
+              <div class="setting-row">
+                <div>
+                  <label for="input-budget">Context size</label>
+                  <p class="settings-hint">
+                    How much prior context OSCAR can include.
+                  </p>
+                </div>
+                <select id="input-budget">
+                  <option value="8000">Compact</option>
+                  <option value="16000">Balanced</option>
+                  <option value="32000">Extended</option>
+                </select>
+              </div>
+            </section>
+            <section class="settings-card">
+              <div class="settings-card-heading"><h3>Spending limits</h3></div>
+              <div class="setting-row">
+                <div>
+                  <label for="spending-ceiling">Model spending ceiling</label>
+                  <p class="settings-hint">
+                    Maximum estimated cost per answer, in USD.
+                  </p>
+                </div>
+                <input
+                  id="spending-ceiling"
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="No ceiling"
+                />
+              </div>
+              <div class="setting-row">
+                <div>
+                  <label for="search-paid-budget">Search credits</label>
+                  <p class="settings-hint">
+                    Limit potentially billable Tavily search credits per answer.
+                  </p>
+                </div>
+                <select id="search-paid-budget">
+                  <option value="0">Included credits only</option>
+                  <option value="1">Up to 1 credit</option>
+                  <option value="2">Up to 2 credits</option>
+                  <option value="3">Up to 3 credits</option>
+                </select>
+              </div>
+            </section>
+            <details class="settings-card settings-disclosure">
+              <summary>Fallback models</summary>
+              <p class="settings-hint">
+                Try these in order when a manually selected model fails before
+                it starts replying.
+              </p>
+              <div id="waterfall-list"></div>
+              <div class="inline-controls">
+                <select
+                  id="waterfall-model"
+                  aria-label="Fallback model"
+                ></select
+                ><button id="waterfall-add" class="outlined">
+                  Add fallback
+                </button>
+              </div>
+            </details>
           </section>
+
           <section
             class="setting-panel"
             id="settings-memory"
             aria-labelledby="heading-memory"
             hidden
           >
-            <h2 id="heading-memory">Memory</h2>
-            <div class="setting-row">
-              <label for="learn">Learn personal preferences</label
-              ><input id="learn" type="checkbox" role="switch" />
+            <div class="settings-heading">
+              <h2 id="heading-memory">Memory</h2>
+              <p>Choose what OSCAR learns and manage the context it uses.</p>
             </div>
-            <div class="setting-row">
-              <div>
-                Working context
-                <p class="secondary">
-                  Reset recent context and working state. Keep history and
-                  personal memory.
-                </p>
+            <section class="settings-card">
+              <div class="settings-card-heading"><h3>Personal memory</h3></div>
+              <div class="setting-row">
+                <div>
+                  <label for="learn">Learn personal preferences</label>
+                  <p class="settings-hint">
+                    Allow OSCAR to save useful details from your conversation.
+                  </p>
+                </div>
+                <input id="learn" type="checkbox" role="switch" />
               </div>
-              <button id="context-clear" class="outlined">Reset</button>
-            </div>
+              <div class="setting-row">
+                <div>
+                  <strong>Saved memories</strong>
+                  <p class="settings-hint">
+                    Review, correct or forget individual details.
+                  </p>
+                </div>
+                <button id="browse-memories" class="outlined">
+                  View memories
+                </button>
+              </div>
+            </section>
+            <section class="settings-card">
+              <div class="settings-card-heading"><h3>Working context</h3></div>
+              <div class="setting-row">
+                <div>
+                  <strong>Reset working context</strong>
+                  <p class="settings-hint">
+                    Clears recent context and working state. Keeps history and
+                    personal memory.
+                  </p>
+                </div>
+                <button id="context-clear" class="outlined">
+                  Reset context
+                </button>
+              </div>
+            </section>
           </section>
+
           <section
             class="setting-panel"
             id="settings-privacy"
             aria-labelledby="heading-privacy"
             hidden
           >
-            <h2 id="heading-privacy">Data & privacy</h2>
-            <p>
-              Your conversation is stored on this device. Relevant excerpts and
-              memories and selected attachments are sent to the chosen cloud
-              provider. Web search sends your query to Tavily when enabled.
-            </p>
-            <p class="secondary">
-              Conversation data is not encrypted. Credentials added here use
-              Windows protection. Forgetting a personal memory stops its
-              retrieval; original conversation records remain readable.
-            </p>
-            <button id="browse-history" class="text-button">
-              Browse conversation history →
-            </button>
+            <div class="settings-heading">
+              <h2 id="heading-privacy">Data & privacy</h2>
+              <p>
+                See what stays on this device and what is sent to providers.
+              </p>
+            </div>
+            <section class="settings-card">
+              <div class="settings-card-heading"><h3>On this device</h3></div>
+              <div class="setting-row">
+                <div>
+                  <strong>Conversation history</strong>
+                  <p class="settings-hint">
+                    Stored locally without encryption. Forgetting a memory stops
+                    its retrieval. The original message remains in history.
+                  </p>
+                </div>
+                <button id="browse-history" class="outlined">
+                  View history
+                </button>
+              </div>
+              <div class="setting-row">
+                <div>
+                  <strong>API keys</strong>
+                  <p class="settings-hint">
+                    Keys added in Settings use Windows credential protection.
+                  </p>
+                </div>
+              </div>
+            </section>
+            <section class="settings-card">
+              <div class="settings-card-heading">
+                <h3>Sent to providers</h3>
+              </div>
+              <div class="setting-row">
+                <div>
+                  <strong>Model requests</strong>
+                  <p class="settings-hint">
+                    The selected provider receives your message, relevant
+                    context and selected attachments.
+                  </p>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div>
+                  <strong>Web search</strong>
+                  <p class="settings-hint">
+                    When search runs, Tavily receives the search query.
+                  </p>
+                </div>
+              </div>
+            </section>
           </section>
         </div>
       </section>

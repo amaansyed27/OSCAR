@@ -30,6 +30,10 @@ pub struct Spec {
     #[serde(default)]
     pub latency_ms: Option<f64>,
     pub quality: Option<f64>,
+    #[serde(default)]
+    pub task_quality: HashMap<String, f64>,
+    #[serde(default)]
+    pub task_evidence: String,
     pub evidence: String,
 }
 impl Spec {
@@ -53,6 +57,8 @@ impl Spec {
             free_verified_at: None,
             latency_ms: None,
             quality: None,
+            task_quality: HashMap::new(),
+            task_evidence: String::new(),
             evidence: "manual registration; limits/capabilities unknown until supplied or tested"
                 .into(),
         }
@@ -465,6 +471,24 @@ impl Platform {
                 .as_f64()
                 .filter(|n| n.is_finite() && *n >= 0. && *n <= 100.);
         }
+        if let Some(ratings) = arg["task_quality"].as_object() {
+            if ratings.len() > 10 || st(arg, "evaluation_evidence").trim().is_empty() {
+                return Err(anyhow!(
+                    "Task ratings require evaluation evidence and at most ten tasks."
+                ));
+            }
+            for (task, rating) in ratings {
+                if !crate::routing::TASKS.contains(&task.as_str()) {
+                    return Err(anyhow!("Unknown evaluation task."));
+                }
+                let score = rating
+                    .as_f64()
+                    .filter(|n| n.is_finite() && (0.0..=100.0).contains(n))
+                    .ok_or_else(|| anyhow!("Evaluation scores must be between zero and 100."))?;
+                spec.task_quality.insert(task.clone(), score);
+            }
+            spec.task_evidence = truncate(st(arg, "evaluation_evidence"), 2000);
+        }
         if !arg["input_price"].is_null() {
             spec.input_price = arg["input_price"]
                 .as_f64()
@@ -588,6 +612,9 @@ impl Platform {
         Ok(h)
     }
     pub async fn discover(&self, id: &str) -> Result<Value> {
+        self.discover_with(id, None).await
+    }
+    pub async fn discover_with(&self, id: &str, credential: Option<&str>) -> Result<Value> {
         let p = self.provider(id)?;
         if st(&p, "protocol") == "restricted" {
             return Err(anyhow!("Coding Plan is excluded from unrestricted chat."));
@@ -603,7 +630,7 @@ impl Platform {
             return Err(anyhow!("Register a model with its documented limits. Account-specific catalog discovery is not available through this inference endpoint."));
         }
         if protocol == "search" {
-            let (_, key) = self.credential(id, None)?;
+            let (cid, key) = self.credential(id, credential)?;
             let response = network::client_for("https://api.tavily.com/usage")
                 .await?
                 .get("https://api.tavily.com/usage")
@@ -612,6 +639,7 @@ impl Platform {
                 .await
                 .map_err(|_| anyhow!("Search usage could not be checked."))?;
             let status = response.status().as_u16();
+            self.record_status(&cid, status, 60)?;
             if status != 200 {
                 return Err(anyhow!("Search validation returned HTTP {status}."));
             }
@@ -639,7 +667,7 @@ impl Platform {
             format!("{base}/{path}")
         };
         let client = network::client_for(&url).await?;
-        let (cid, key) = self.credential(id, None)?;
+        let (cid, key) = self.credential(id, credential)?;
         let response = client
             .get(&url)
             .headers(self.headers(&p, &key)?)
@@ -720,6 +748,10 @@ impl Platform {
                 spec.tools = item["supported_parameters"]
                     .as_array()
                     .map(|a| a.iter().any(|p| p == "tools"));
+                spec.structured = item["supported_parameters"].as_array().map(|a| {
+                    a.iter()
+                        .any(|p| p == "response_format" || p == "structured_outputs")
+                });
             }
             if id == "openrouter"
                 && item["architecture"]["output_modalities"]

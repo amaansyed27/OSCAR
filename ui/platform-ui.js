@@ -5,7 +5,34 @@ let platformModels = [],
   providerId = "groq";
 const platformStatus = (message) => {
   $("provider-status").textContent = message || "";
+  $("provider-status").hidden = !message;
 };
+function showProviderTab(name) {
+  for (const tab of document.querySelectorAll("[data-provider-tab]"))
+    tab.setAttribute("aria-pressed", String(tab.dataset.providerTab === name));
+  for (const pane of document.querySelectorAll("[data-provider-pane]"))
+    pane.hidden = pane.dataset.providerPane !== name;
+}
+for (const tab of document.querySelectorAll("[data-provider-tab]"))
+  tab.onclick = () => showProviderTab(tab.dataset.providerTab);
+function resetCredentialEditor() {
+  const form = $("credential-form");
+  form.reset();
+  delete form.dataset.replace;
+  $("credential-editor").open = false;
+  $("credential-editor").querySelector("summary").textContent =
+    "Add an API key";
+}
+function describeRouting() {
+  const descriptions = {
+    "auto:free": "Uses only currently verified free models.",
+    "auto:efficient": "Chooses a suitable model with known pricing.",
+    "auto:super": "Prefers suitable models with recorded quality ratings.",
+  };
+  $("routing-description").textContent =
+    descriptions[settings.model] ||
+    "Uses the selected model first. You can set fallback models below.";
+}
 const optionsFor = (select, items, selected) => {
   select.replaceChildren(
     ...items.map(([value, label]) => new Option(label, value)),
@@ -17,7 +44,9 @@ function selectionLabel(id) {
     return "Auto · " + id.slice(5).replace(/^./, (c) => c.toUpperCase());
   const m = platformModels.find((m) => m.id === id || m.model === id);
   const p = platformProviders.find((p) => p.id === m?.provider);
-  return m ? `${p?.name || m.provider} · ${m.name}` : "Groq · GPT-OSS 20B";
+  const gptOss = /^openai\/gpt-oss-(20b|120b)$/.exec(m?.name || "");
+  const name = gptOss ? `GPT-OSS ${gptOss[1].toUpperCase()}` : m?.name;
+  return m ? `${p?.name || m.provider} · ${name}` : id || "Choose a model";
 }
 async function refreshPlatform() {
   [platformProviders, platformModels] = await Promise.all([
@@ -47,21 +76,70 @@ async function refreshPlatform() {
       .filter((m) => m.enabled)
       .map((m) => [m.id, selectionLabel(m.id)]),
   );
-  optionsFor(
-    $("provider-select"),
-    platformProviders.map((p) => [p.id, p.name]),
-    providerId,
-  );
+  const providerSelect = $("provider-select");
+  providerSelect.replaceChildren();
+  for (const [name, configured] of [
+    ["With credentials", true],
+    ["Provider catalog", false],
+  ]) {
+    const group = document.createElement("optgroup");
+    group.label = name;
+    for (const provider of platformProviders.filter(
+      (p) => Boolean(p.credentials?.length) === configured,
+    ))
+      group.append(new Option(provider.name, provider.id));
+    if (group.children.length) providerSelect.append(group);
+  }
+  providerSelect.value = providerId;
   $("model-picker").textContent = selectionLabel(current.model);
   $("search-mode").value = current.search_mode || "auto";
   $("spending-ceiling").value = current.spending_ceiling || "";
   $("search-paid-budget").value = current.search_paid_credits || "0";
   renderWaterfall();
+  describeRouting();
   renderProvider();
 }
 function renderProvider() {
   const p = platformProviders.find((p) => p.id === providerId);
   if (!p) return;
+  const search = p.protocol === "search";
+  const restricted = p.protocol === "restricted";
+  const enabledKeys = (p.credentials || []).filter((c) => c.enabled);
+  const active = enabledKeys.length;
+  const keySelect = $("test-credential");
+  optionsFor(
+    keySelect,
+    [
+      ["", "Any enabled key"],
+      ...enabledKeys.map((key) => [key.id, key.nickname]),
+    ],
+    keySelect.value,
+  );
+  const enabledModels = platformModels.filter(
+    (m) => m.provider === p.id && m.enabled,
+  ).length;
+  $("provider-summary").textContent = [
+    active
+      ? `${active} enabled ${active === 1 ? "key" : "keys"}`
+      : "No enabled keys",
+    search
+      ? "Web search"
+      : restricted
+        ? "Restricted plan"
+        : `${enabledModels} enabled models`,
+  ].join(" · ");
+  document.querySelector('[data-provider-tab="models"]').hidden =
+    search || restricted;
+  document.querySelector('[data-provider-tab="connection"]').hidden =
+    search || restricted;
+  const refresh = $("discover-models");
+  refresh.hidden = restricted;
+  refresh.textContent = search ? "Check search access" : "Refresh models";
+  document
+    .querySelector(
+      `[data-provider-pane="${search ? "access" : "models"}"] .provider-section-heading`,
+    )
+    .append(refresh);
   const form = $("provider-form");
   for (const input of form.elements)
     if (input.name)
@@ -86,6 +164,7 @@ function renderProvider() {
         .then(refreshPlatform)
         .catch((e) => platformStatus(e.message));
     label.append(toggle, document.createTextNode(c.nickname));
+    toggle.setAttribute("aria-label", `Enable ${c.nickname}`);
     const detail = document.createElement("small");
     detail.textContent =
       (c.source.startsWith("environment:")
@@ -115,8 +194,12 @@ function renderProvider() {
     replace.className = "subtle";
     replace.onclick = () => {
       const form = $("credential-form");
+      resetCredentialEditor();
       form.dataset.replace = c.id;
       form.elements.nickname.value = c.nickname;
+      $("credential-editor").open = true;
+      $("credential-editor").querySelector("summary").textContent =
+        "Replace API key";
       form.elements.secret.focus();
       platformStatus(
         c.source.startsWith("environment:")
@@ -126,11 +209,17 @@ function renderProvider() {
     };
     const actions = document.createElement("div");
     actions.className = "inline-controls";
-    actions.append(replace, remove);
+    actions.append(replace);
+    if (!c.source.startsWith("environment:")) actions.append(remove);
     row.append(label, detail, actions);
     list.append(row);
   }
-  if (!p.credentials?.length) list.textContent = "No credentials configured.";
+  if (!p.credentials?.length) {
+    const empty = document.createElement("p");
+    empty.className = "settings-empty-state";
+    empty.textContent = "No API keys for this provider yet.";
+    list.append(empty);
+  }
   platformStatus(
     p.protocol === "restricted"
       ? "This restricted Coding Plan is not enabled for general conversation."
@@ -166,7 +255,9 @@ function renderProviderModels() {
     capabilities.textContent = [
       m.context ? `${m.context.toLocaleString()} context` : "Context unknown",
       m.vision ? "Images" : "",
-      m.free
+      m.free &&
+      m.free_verified_at &&
+      Date.now() / 1000 - m.free_verified_at < 86400
         ? "Verified free"
         : m.input_price === null
           ? "Price unknown"
@@ -200,6 +291,7 @@ function renderProviderModels() {
       try {
         const result = await api.testConnection({
           model: m.id,
+          credential: $("test-credential").value || undefined,
           allowBillable: $("allow-billable-test").checked,
         });
         platformStatus(
@@ -225,16 +317,37 @@ function renderProviderModels() {
 }
 $("provider-select").onchange = () => {
   providerId = $("provider-select").value;
+  resetCredentialEditor();
+  resetConnectionEditor();
+  $("allow-billable-test").checked = false;
   $("model-search").value = "";
+  $("model-form").reset();
+  $("model-form").closest("details").open = false;
+  showProviderTab("access");
   renderProvider();
 };
 $("model-search").oninput = renderProviderModels;
+function resetConnectionEditor() {
+  delete $("provider-form").dataset.create;
+  $("connection-title").textContent = "Connection details";
+  $("cancel-provider").hidden = true;
+  document.querySelector(".provider-tabs").hidden = false;
+}
+$("cancel-provider").onclick = () => {
+  resetConnectionEditor();
+  showProviderTab("access");
+  renderProvider();
+  $("add-provider").focus();
+};
 $("add-provider").onclick = () => {
-  providerId = "";
+  resetCredentialEditor();
   const form = $("provider-form");
   form.reset();
-  form.elements.name.value = "Custom provider";
-  form.closest("details").open = true;
+  form.dataset.create = "true";
+  $("connection-title").textContent = "Add a custom provider";
+  $("cancel-provider").hidden = false;
+  document.querySelector(".provider-tabs").hidden = true;
+  showProviderTab("connection");
   form.elements.name.focus();
   platformStatus(
     "Enter the public HTTPS endpoint and its documented compatibility protocol.",
@@ -246,12 +359,14 @@ $("provider-form").onsubmit = async (e) => {
     const fields = Object.fromEntries(new FormData(e.target));
     if (fields.headers?.trim()) fields.headers = JSON.parse(fields.headers);
     else delete fields.headers;
-    if (providerId) fields.id = providerId;
+    if (!e.target.dataset.create) fields.id = providerId;
     const p = await api.saveProvider(fields);
     providerId = p.id;
+    resetConnectionEditor();
+    showProviderTab("access");
     await refreshPlatform();
     platformStatus(
-      "Connection settings saved. Validate before selecting a model.",
+      "Connection saved. Add a key if the provider requires one, then refresh its models.",
     );
   } catch (e) {
     platformStatus(e.message);
@@ -267,8 +382,7 @@ $("credential-form").onsubmit = async (e) => {
       provider: providerId,
       id: e.target.dataset.replace || undefined,
     });
-    delete e.target.dataset.replace;
-    e.target.reset();
+    resetCredentialEditor();
     await refreshPlatform();
     platformStatus("Credential protected and saved.");
   } catch (e) {
@@ -283,7 +397,9 @@ $("discover-models").onclick = async () => {
     const result = await api.discoverModels({ provider: providerId });
     await refreshPlatform();
     platformStatus(
-      `${result.models} models refreshed. Enable the models you want to use. Model discovery does not prove every generation capability.`,
+      result.usage
+        ? "Tavily credentials verified."
+        : `${result.models} models found. Enable the ones you want to use.`,
     );
   } catch (e) {
     platformStatus(e.message);
@@ -295,6 +411,12 @@ $("model-form").onsubmit = async (e) => {
   e.preventDefault();
   try {
     const fields = Object.fromEntries(new FormData(e.target));
+    if (fields.evaluation_task) {
+      if (fields.task_score === "" || !fields.evaluation_evidence.trim()) throw new Error("Add a task score and its evaluation evidence.");
+      fields.task_quality = { [fields.evaluation_task]: Number(fields.task_score) };
+    }
+    delete fields.evaluation_task;
+    delete fields.task_score;
     for (const k of [
       "context",
       "output",
@@ -512,11 +634,13 @@ $("apply-model").onclick = async () => {
   });
   $("model-picker").textContent = selectionLabel(model);
   $("model").value = model;
+  describeRouting();
   $("model-dialog").close();
 };
 $("model").onchange = async () => {
   await saveSettings({ model: $("model").value, reasoning: "auto" });
   $("model-picker").textContent = selectionLabel(settings.model);
+  describeRouting();
 };
 $("search-mode").onchange = () =>
   saveSettings({ search_mode: $("search-mode").value });
@@ -526,8 +650,8 @@ $("personalization-form").onsubmit = async (e) => {
   const rich = e.target.elements.rich_ui.checked;
   delete fields.rich_ui;
   try {
-    await saveSettings({ personalization: fields, rich_ui: rich });
-    $("personalization-status").textContent = "Saved";
+    await saveSettings({ personalization: fields, rich_ui: rich }, true);
+    $("personalization-status").textContent = "Preferences saved.";
   } catch (e) {
     $("personalization-status").textContent = e.message;
   }

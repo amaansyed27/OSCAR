@@ -23,6 +23,16 @@ impl Platform {
         vision: bool,
         documents: bool,
     ) -> Result<(Vec<Target>, routing::Decision)> {
+        self.targets_for(selection, text, vision, documents, None)
+    }
+    pub fn targets_for(
+        &self,
+        selection: &str,
+        text: &str,
+        vision: bool,
+        documents: bool,
+        override_decision: Option<routing::Decision>,
+    ) -> Result<(Vec<Target>, routing::Decision)> {
         let (smode, reasoning, waterfall, ceiling) = {
             let s = self.store.lock().unwrap();
             (
@@ -32,7 +42,8 @@ impl Platform {
                 s.get("spending_ceiling", ""),
             )
         };
-        let decision = routing::decide(text, &smode, vision, documents);
+        let decision =
+            override_decision.unwrap_or_else(|| routing::decide(text, &smode, vision, documents));
         let mut preferences =
             std::collections::HashMap::<String, (Option<String>, Option<String>)>::new();
         let mut specs = if selection.starts_with("auto:") {
@@ -465,7 +476,11 @@ pub async fn complete(
     cancel: &CancellationToken,
 ) -> Result<String> {
     let (response, _) = request(platform, target, messages, true, false, cancel).await?;
-    let value: Value = serde_json::from_slice(&network::bounded(response, 2_000_000).await?)?;
+    let mut value: Value = serde_json::from_slice(&network::bounded(response, 2_000_000).await?)?;
+    if st(&target.provider, "protocol") == "replicate" {
+        value = replicate_prediction(platform, target, value, cancel, |_, _| Ok(())).await?;
+        return replicate_output(&value);
+    }
     let text = completion_text(st(&target.provider, "protocol"), &value);
     if text.is_empty() {
         return Err(anyhow!("Provider returned no text."));
@@ -527,11 +542,14 @@ pub async fn stream(
             }
         };
         let protocol = st(&target.provider, "protocol");
-        let response = if protocol == "replicate" {
-            replicate_stream(platform, target, response, cancel).await?
-        } else {
-            response
-        };
+        if protocol == "replicate" {
+            let value = serde_json::from_slice(&network::bounded(response, 2_000_000).await?)?;
+            let value = replicate_prediction(platform, target, value, cancel, &mut delta).await?;
+            return Ok((
+                replicate_output(&value)?,
+                json!({"provider":target.spec.provider,"model":target.spec.model,"credential":cid,"metrics":value["metrics"],"estimated_cost":null}),
+            ));
+        }
         let mut stream = response.bytes_stream();
         let mut decoder = crate::wire::Decoder::new(protocol);
         let (mut content, mut done, mut usage) = (String::new(), false, json!({}));
@@ -613,31 +631,109 @@ pub fn input_tokens(messages: &Value, model: &str) -> usize {
         + 64
 }
 
-async fn replicate_stream(
+pub fn replicate_output(value: &Value) -> Result<String> {
+    match &value["output"] {
+        Value::Null => Ok(String::new()),
+        Value::String(text) => Ok(text.clone()),
+        Value::Array(parts) if parts.iter().all(Value::is_string) => {
+            Ok(parts.iter().filter_map(Value::as_str).collect())
+        }
+        _ => Err(anyhow!("This Replicate model did not return text output.")),
+    }
+}
+
+pub fn prediction_url(base: &str, id: &str) -> Result<String> {
+    network::cloud_url(base)?;
+    if id.is_empty()
+        || id.len() > 128
+        || !id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return Err(anyhow!("Invalid prediction identifier."));
+    }
+    Ok(format!("{}/predictions/{id}", base.trim_end_matches('/')))
+}
+
+async fn replicate_prediction(
     platform: &Platform,
     target: &Target,
-    response: reqwest::Response,
+    mut value: Value,
     cancel: &CancellationToken,
-) -> Result<reqwest::Response> {
-    let value: Value = serde_json::from_slice(&network::bounded(response, 1000000).await?)?;
-    let url = st(&value["urls"], "stream");
-    if url.is_empty() {
-        return Err(anyhow!("This Replicate model did not offer a streaming output URL. The prediction was not replayed."));
-    }
-    let parsed = network::cloud_url(url.split('?').next().unwrap_or(url))?;
-    if !parsed
-        .host_str()
-        .is_some_and(|h| h == "stream.replicate.com" || h.ends_with(".replicate.delivery"))
-    {
+    mut delta: impl FnMut(&str, &str) -> Result<()>,
+) -> Result<Value> {
+    // Derive lifecycle URLs from the configured origin, never provider-supplied URLs.
+    let url = prediction_url(st(&target.provider, "base"), st(&value, "id"))?;
+    let client = network::client_for(&url).await?;
+    let (_, key) = platform.credential(&target.spec.provider, target.credential.as_deref())?;
+    let headers = platform.headers(&target.provider, &key)?;
+    let mut emitted = String::new();
+    let work = async {
+        loop {
+            let output = replicate_output(&value)?;
+            if !output.starts_with(&emitted) {
+                return Err(anyhow!(
+                    "Prediction revised already displayed output; partial reply is saved."
+                ));
+            }
+            if output.len() > emitted.len() {
+                delta(&output[emitted.len()..], &output)?;
+                emitted = output;
+            }
+            match st(&value, "status") {
+                "succeeded" if !emitted.is_empty() => return Ok(value),
+                "succeeded" => return Err(anyhow!("Prediction completed without text.")),
+                "failed" | "canceled" => {
+                    return Err(anyhow!(
+                        "Prediction failed or was canceled. Partial reply is saved."
+                    ))
+                }
+                "starting" | "processing" => {}
+                _ => {
+                    return Err(anyhow!(
+                        "Unknown prediction status; prediction was not replayed."
+                    ))
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(750)).await;
+            let response = client
+                .get(&url)
+                .headers(headers.clone())
+                .send()
+                .await
+                .map_err(|_| {
+                    anyhow!("Prediction status unavailable; prediction was not replayed.")
+                })?;
+            if !response.status().is_success() {
+                return Err(anyhow!(
+                    "Prediction status returned HTTP {}.",
+                    response.status().as_u16()
+                ));
+            }
+            value = serde_json::from_slice(&network::bounded(response, 2_000_000).await?)?;
+        }
+    };
+    let result = tokio::select! {
+        _ = cancel.cancelled() => Err(anyhow!("Stopped")),
+        result = tokio::time::timeout(std::time::Duration::from_secs(180), work) =>
+            result.unwrap_or_else(|_| Err(anyhow!("Prediction timed out."))),
+    };
+    if let Err(error) = result {
+        let canceled = client
+            .post(format!("{url}/cancel"))
+            .headers(headers)
+            .timeout(std::time::Duration::from_secs(5))
+            .send()
+            .await
+            .is_ok_and(|r| r.status().is_success());
         return Err(anyhow!(
-            "Replicate returned an unexpected streaming host; no credentials were sent."
+            "{error} Remote cancellation {}.",
+            if canceled {
+                "acknowledged"
+            } else {
+                "could not be confirmed"
+            }
         ));
     }
-    let client = network::client_for(url.split('?').next().unwrap_or(url)).await?;
-    let response = tokio::select! {_=cancel.cancelled()=>return Err(anyhow!("Stopped")),r=client.get(url).send()=>r.map_err(|_|anyhow!("Replicate stream could not be opened."))?};
-    if !response.status().is_success() {
-        return Err(anyhow!("Replicate stream could not be opened."));
-    }
-    let _ = (platform, target);
-    Ok(response)
+    result
 }

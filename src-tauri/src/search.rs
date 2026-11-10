@@ -56,7 +56,14 @@ impl Tavily {
 }
 impl SearchProvider for Tavily {
     async fn query(&self, query: &str, cancel: &CancellationToken) -> Result<Value> {
-        let response = tokio::select! {_=cancel.cancelled()=>return Err(anyhow!("Stopped")),r=self.client.post("https://api.tavily.com/search").bearer_auth(&self.key).json(&json!({"query":query,"search_depth":"basic","max_results":5,"include_raw_content":false,"include_answer":false,"include_usage":true})).send()=>r.map_err(|_|anyhow!("Search could not be reached."))?};
+        let time_range = if re(r"(?i)\b(today|past 24 hours)\b").is_match(query) {
+            Some("d")
+        } else if re(r"(?i)\b(this week|past week)\b").is_match(query) {
+            Some("w")
+        } else {
+            None
+        };
+        let response = tokio::select! {_=cancel.cancelled()=>return Err(anyhow!("Stopped")),r=self.client.post("https://api.tavily.com/search").bearer_auth(&self.key).json(&json!({"query":query,"search_depth":"basic","max_results":5,"include_raw_content":false,"include_answer":false,"include_usage":true,"include_published_date":true,"time_range":time_range})).send()=>r.map_err(|_|anyhow!("Search could not be reached."))?};
         let status = response.status().as_u16();
         self.platform.record_status(&self.credential, status, 60)?;
         if !(200..300).contains(&status) {

@@ -77,6 +77,8 @@ function selectSettings(key, animate = true) {
   const target = $("settings-" + key);
   if (!target) return;
   settingsSection = key;
+  document.querySelector(".settings-content").scrollTop = 0;
+  $("settings-empty").hidden = true;
   localStorage.setItem("oscar.settingsSection", key);
   document
     .querySelectorAll(".setting-panel")
@@ -91,7 +93,17 @@ function selectSettings(key, animate = true) {
 for (const button of document.querySelectorAll("[data-settings]")) {
   button.onclick = () => selectSettings(button.dataset.settings);
   button.onkeydown = (event) => {
-    if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+    if (
+      ![
+        "ArrowUp",
+        "ArrowDown",
+        "ArrowLeft",
+        "ArrowRight",
+        "Home",
+        "End",
+      ].includes(event.key)
+    )
+      return;
     event.preventDefault();
     const buttons = [...document.querySelectorAll("[data-settings]")].filter(
       (b) => !b.hidden,
@@ -102,7 +114,9 @@ for (const button of document.querySelectorAll("[data-settings]")) {
         ? 0
         : event.key === "End"
           ? buttons.length - 1
-          : (at + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) %
+          : (at +
+              (["ArrowDown", "ArrowRight"].includes(event.key) ? 1 : -1) +
+              buttons.length) %
             buttons.length;
     buttons[next]?.focus();
     buttons[next]?.click();
@@ -115,9 +129,13 @@ $("settings-search").oninput = () => {
     (button) =>
       (button.hidden =
         !!query &&
-        !(button.dataset.search + " " + button.textContent)
-          .toLowerCase()
-          .includes(query)),
+        !query
+          .split(/\s+/)
+          .every((word) =>
+            (button.dataset.search + " " + button.textContent)
+              .toLowerCase()
+              .includes(word),
+          )),
   );
   const visible = buttons.filter((button) => !button.hidden);
   $("settings-empty").hidden = visible.length > 0;
@@ -702,11 +720,12 @@ $("memory-edit").onsubmit = async (e) => {
   }
 };
 $("edit-cancel").onclick = () => ($("memory-edit").hidden = true);
-async function saveSettings(value) {
+async function saveSettings(value, feedback) {
   try {
     settings = await api.setSettings(value);
     theme();
   } catch (e) {
+    if (feedback) throw e;
     notice(e.message);
   }
 }
@@ -718,6 +737,10 @@ $("input-budget").onchange = () =>
 $("browse-history").onclick = () => {
   navigate("memories");
   switchTab("history");
+};
+$("browse-memories").onclick = () => {
+  navigate("memories");
+  switchTab("personal");
 };
 $("context-clear").onclick = () =>
   confirm(

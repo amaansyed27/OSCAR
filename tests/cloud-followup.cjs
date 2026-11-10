@@ -1,0 +1,33 @@
+const desktop=require('./desktop-driver.cjs'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),{parseEnv}=require('node:util');
+const out=path.resolve('.oscar/completion');
+let app;
+const receipt={turns:[]};
+(async()=>{
+ app=await desktop.launch({env:{...process.env,OSCAR_DATA_DIR:path.join(out,'followup-'+Date.now())}});
+ const page=await app.firstWindow(); await page.locator('html[data-theme]').waitFor();
+ const api=(n,a)=>page.evaluate(([n,a])=>window.oscar[n](a),[n,a]);
+ await api('discoverModels',{provider:'openrouter'});
+ const models=await api('cloudModels',{provider:'openrouter'});
+ const m=models.find(m=>m.free&&m.model==='nvidia/nemotron-3.5-super-vl:free'); assert(m);
+ await api('registerModel',{provider:m.provider,model:m.model,output:4096});
+ await api('toggleModel',{id:m.id,enabled:true});
+ await api('setSettings',{model:m.id,learn:false,search_mode:'off',spending_ceiling:'0',waterfall:[]});
+ async function turn(text){await api('send',{text});const row=(await api('history')).filter(m=>m.role==='assistant').at(-1);assert.equal(row.status,'complete');const details=await api('responseDetails',row.id);const result={text,answer:row.content,details};receipt.turns.push(result);return result;}
+ const custom=await api('saveProvider',{name:'Anthropic compatible live check',protocol:'anthropic',base:'https://openrouter.ai/api/v1',auth:'bearer'});
+ const env=Object.assign({},...['.env','.env.local'].filter(fs.existsSync).map(n=>parseEnv(fs.readFileSync(n,'utf8'))));
+ const secret=Object.entries(env).find(([k,v])=>/^OPENROUTER_API_KEY_\d+$/.test(k)&&v)?.[1];assert(secret);
+ await api('saveCredential',{provider:custom.id,nickname:'Isolated protocol check',secret});
+ const spec=await api('registerModel',{provider:custom.id,model:m.model,context:m.context,output:2048,input_price:0,output_price:0,streaming:true});
+ await api('setSettings',{model:spec.id});
+ const anthropic=await turn('Reply with exactly: Anthropic compatible works.');assert.match(anthropic.answer,/Anthropic compatible works/i);
+ await api('setSettings',{model:m.id});
+ const decision=await turn('What would be a sensible way for someone to approach choosing between several unfamiliar options?');
+ receipt.classified=decision.details.decision.explanation.includes('classified');
+ assert(receipt.classified,'Ambiguous request should exercise the real Decision Model');
+ await api('setSettings',{search_mode:'on'});
+ const research=await turn('Compare Rust ownership and Go garbage collection using official documentation. Cite sources and distinguish memory management.');
+ assert(research.details.sources.some(s=>new URL(s.url).hostname==='go.dev'),'Comparison must retrieve Go primary documentation');
+ assert(research.details.sources.some(s=>new URL(s.url).hostname==='doc.rust-lang.org'),'Comparison must retrieve Rust primary documentation');
+ receipt.diagnostics=await api('diagnostics');
+ receipt.passed=true;
+})().catch(e=>{receipt.failure=String(e);process.exitCode=1;}).finally(async()=>{fs.writeFileSync(path.join(out,'cloud-followup.json'),JSON.stringify(receipt,null,2));console.log(JSON.stringify({passed:receipt.passed,classified:receipt.classified,failure:receipt.failure,turns:receipt.turns.length}));if(app)await app.close();});

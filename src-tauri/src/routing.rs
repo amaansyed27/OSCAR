@@ -2,6 +2,39 @@ use crate::{cloud::Spec, store::re};
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+pub const TASKS: &[&str] = &[
+    "conversation",
+    "knowledge questions",
+    "complex reasoning",
+    "mathematics",
+    "programming",
+    "research",
+    "document analysis",
+    "image analysis",
+    "multi-step tasks",
+];
+
+pub fn ambiguous(text: &str, decision: &Decision) -> bool {
+    decision.task == "conversation"
+        && text.split_whitespace().count() >= 12
+        && !re(r"(?i)^\s*(hi|hello|hey|rewrite|translate|summari[sz]e)\b").is_match(text)
+}
+
+pub fn classified(value: &Value, original: &Decision, search_mode: &str) -> Result<Decision> {
+    let task = value["task"]
+        .as_str()
+        .filter(|t| TASKS.contains(t))
+        .ok_or_else(|| anyhow!("Invalid decision task."))?;
+    let complex = value["complex"]
+        .as_bool()
+        .ok_or_else(|| anyhow!("Invalid complexity."))?;
+    let search = value["search"]
+        .as_bool()
+        .ok_or_else(|| anyhow!("Invalid search decision."))?;
+    Ok(Decision { task: task.into(), complex, search: search_mode == "on" || (search_mode != "off" && (original.search || search)),
+        vision: original.vision, reasoning: if complex {"high"} else {"low"}.into(),
+        explanation: "Ambiguous request classified by a verified zero-price Decision Model; capability and spending rules remain enforced.".into() })
+}
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Decision {
     pub task: String,
@@ -26,6 +59,10 @@ pub fn decide(text: &str, search_mode: &str, images: bool, documents: bool) -> D
         "research"
     } else if re(r"(?i)\b(code|function|program|debug|rust|javascript|python)\b").is_match(text) {
         "programming"
+    } else if re(r"(?i)\b(prove|derive|mathematics|equation|calculate|integral)\b").is_match(text) {
+        "mathematics"
+    } else if re(r"(?i)\b(plan|multi.step|steps|schedule)\b").is_match(text) {
+        "multi-step tasks"
     } else if complex {
         "complex reasoning"
     } else {
@@ -73,10 +110,11 @@ pub fn rank(
         models.retain(|m| estimate(m, input, 4000).is_some_and(|p| p <= max));
     }
     if mode == "super" {
-        models.retain(|m| m.quality.is_some());
+        let quality = |m: &Spec| m.task_quality.get(&decision.task).copied().or(m.quality);
+        models.retain(|m| quality(m).is_some());
         models.sort_by(|a, b| {
-            b.quality
-                .partial_cmp(&a.quality)
+            quality(b)
+                .partial_cmp(&quality(a))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
     } else {

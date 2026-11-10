@@ -659,7 +659,8 @@ Ok(())}
             let ids=attachment_ids.clone();
             let query=text.clone();
             let (document_evidence, images)=self.db(move|s|crate::documents::evidence(s,&ids,&query,5000)).await?;
-            let (model,decision)=self.model().prepare(&text,!images.is_empty(),!attachment_ids.is_empty())?;
+            let (model,decision,classified)=self.model().prepare_decided(&text,!images.is_empty(),!attachment_ids.is_empty(),cancel).await?;
+            requests += i32::from(classified);
             let research=if let Some(platform)=&model.platform {crate::research::research(platform,&text,&decision,cancel).await?}else{crate::research::Research{evidence:Value::Null,sources:vec![],warnings:vec![]}};
             let personal=self.db(|s|{let p=s.get("personalization","{}");s.safe(&crate::routing::personalization(&serde_json::from_str(&p)?),false,None)}).await?;
             let answer_prompt=format!("{ANSWER_PROMPT}\nPersonalization:\n{personal}\nLive research and document sources may be present in Evidence. Cite web sources as [W1], and attachments by file name and chunk. Never claim content not present in supplied passages was reviewed. Cite attachment passages as [D:attachment-id:chunk-number] using only supplied IDs and chunk numbers. For structured interactive output, use fenced oscar-ui JSON only when useful. Use a version 1 schema with type table, chart, comparison, timeline, calculator, checklist or slider; provide title and data/items. Never generate JavaScript or HTML actions.");
