@@ -37,7 +37,7 @@ async function ask(text, retryId) {
     await page.locator("#stop").waitFor({ state: "hidden", timeout: 120000 });
   }
   let notice = await page.locator("#notice").textContent();
-  if (/Groq rate limit/.test(notice)) {
+  if (/Groq rate limit|GroqCloud returned HTTP 429/i.test(notice)) {
     log.push({ providerFailure: notice, user: text });
     const seconds = Number(notice.match(/(\d+) seconds/)?.[1] || 20);
     await new Promise((resolve) =>

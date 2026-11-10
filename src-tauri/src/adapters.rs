@@ -286,6 +286,9 @@ pub fn request_body(
                 body["response_format"] = json!({"type":"json_object"});
             }
             if spec.provider == "groq" {
+                if json_mode && spec.model.starts_with("openai/gpt-oss-") {
+                    body["reasoning_format"] = json!("hidden");
+                }
                 body["stream_options"] = json!({"include_usage":true});
                 if !stream {
                     body.as_object_mut().unwrap().remove("stream_options");

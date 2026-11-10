@@ -2,6 +2,11 @@
 
 Entries describe each stage at its date. Later entries supersede earlier behavior and limitations.
 
+## 2026-11-10 — Memory learning and model setup
+
+- Fixed Groq GPT-OSS memory extraction requests. A live desktop test saved, corrected, and forgot a preference.
+- Settings and the composer now share a model picker. The provider page separates API keys, model catalog, and connection tests.
+
 ## 2026-11-10 — Settings redesign
 
 - Reorganized every Settings page with new icons, clearer groups, and layouts that fit narrow windows.

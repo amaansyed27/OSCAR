@@ -100,7 +100,7 @@ async function togglePin() {
     await p.mouse.move(500, 20);
     await p.locator("[data-page=settings]").click();
     await p.locator("[data-settings=model]").click();
-    assert(await p.locator("#model").isVisible());
+    assert(await p.locator("#change-model").isVisible());
     assert(await p.locator("#theme").isHidden());
     await p.locator("#settings-search").fill("privacy");
     assert(await p.locator("#settings-privacy").isVisible());

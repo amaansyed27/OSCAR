@@ -730,7 +730,6 @@ async function saveSettings(value, feedback) {
   }
 }
 $("theme").onchange = () => saveSettings({ theme: $("theme").value });
-$("model").onchange = () => saveSettings({ model: $("model").value });
 $("learn").onchange = () => saveSettings({ learn: $("learn").checked });
 $("input-budget").onchange = () =>
   saveSettings({ inputTokens: Number($("input-budget").value) });
@@ -825,7 +824,6 @@ api.onEvent((event) => {
     ]);
     theme();
     $("theme").value = settings.theme;
-    $("model").value = settings.model;
     $("learn").checked = settings.learn;
     $("input-budget").value = settings.inputTokens;
     $("message").value = await api.draft();

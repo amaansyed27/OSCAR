@@ -1608,6 +1608,16 @@ summary {
   overflow: auto;
   margin: 12px 0;
 }
+.current-model-row h3 {
+  margin: 0 0 4px;
+}
+.current-model-row #current-model-name {
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+#provider-next {
+  margin-block: 12px;
+}
 #model-dialog {
   width: min(520px, 90vw);
 }

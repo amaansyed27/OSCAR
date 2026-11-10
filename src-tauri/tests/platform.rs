@@ -251,6 +251,20 @@ fn adapter_families_use_actual_protocol_shapes() {
     }
 }
 #[test]
+fn groq_gpt_oss_structured_completion_hides_reasoning() {
+    let mut t = target("openai");
+    t.spec.provider = "groq".into();
+    t.spec.model = "openai/gpt-oss-20b".into();
+    t.spec.structured = Some(true);
+    let messages = json!([{"role":"user","content":"Return a JSON object."}]);
+    let (_, body) = request_body(&t, messages.clone(), true, false).unwrap();
+    assert_eq!(body["response_format"]["type"], "json_object");
+    assert_eq!(body["reasoning_format"], "hidden");
+    let (_, chat) = request_body(&t, messages, false, true).unwrap();
+    assert!(chat.get("reasoning_format").is_none());
+}
+
+#[test]
 fn reasoning_is_model_specific() {
     let mut t = target("openai");
     t.spec.reasoning = vec!["low".into(), "high".into()];

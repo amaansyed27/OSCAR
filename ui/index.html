@@ -341,7 +341,7 @@
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 4v5m8-5v5M6 9h12v3a6 6 0 0 1-6 6v3m-6-9V9" /></svg
-              ><span>Providers</span>
+              ><span>Providers &amp; keys</span>
             </button>
             <button
               type="button"
@@ -384,21 +384,20 @@
         <div class="settings-content">
           <section class="setting-panel" id="settings-providers" hidden>
             <div class="settings-heading">
-              <h2>Providers</h2>
+              <h2>Providers &amp; API keys</h2>
               <p>
-                Connect an AI service and choose which models appear in the
-                composer.
+                Choose a service, add a key, then enable the models you want to use.
               </p>
             </div>
             <div class="settings-card provider-workspace">
               <div class="provider-toolbar">
                 <div class="provider-selection">
-                  <label for="provider-select">Provider</label
+                  <label for="provider-select">AI service</label
                   ><select id="provider-select"></select>
                   <p id="provider-summary" class="settings-hint"></p>
                 </div>
                 <button id="add-provider" class="outlined">
-                  Add custom provider
+                  Custom endpoint…
                 </button>
               </div>
               <nav class="provider-tabs" aria-label="Provider settings">
@@ -407,21 +406,21 @@
                   data-provider-tab="access"
                   aria-pressed="true"
                 >
-                  Access
+                  API keys
                 </button>
                 <button
                   type="button"
                   data-provider-tab="models"
                   aria-pressed="false"
                 >
-                  Models
+                  Model catalog
                 </button>
                 <button
                   type="button"
                   data-provider-tab="connection"
                   aria-pressed="false"
                 >
-                  Connection
+                  Connection tests
                 </button>
               </nav>
               <p
@@ -440,6 +439,7 @@
                   </div>
                 </div>
                 <div id="credential-list"></div>
+                <button id="provider-next" class="outlined" hidden>Choose models for this service</button>
                 <details id="credential-editor" class="settings-disclosure">
                   <summary>Add an API key</summary>
                   <form id="credential-form" class="settings-form">
@@ -846,21 +846,12 @@
               </p>
             </div>
             <section class="settings-card">
-              <div class="settings-card-heading">
-                <h3>Model selection</h3>
-                <p>
-                  Applies to new messages unless you change the model in the
-                  composer.
-                </p>
-              </div>
-              <div class="setting-row">
+              <div class="setting-row current-model-row">
                 <div>
-                  <label for="model">Default model</label>
+                  <h3>Current model</h3>
+                  <p id="current-model-name" class="settings-hint"></p>
                 </div>
-                <select id="model">
-                  <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
-                  <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
-                </select>
+                <button id="change-model" class="outlined">Change model</button>
               </div>
               <p
                 id="routing-description"
@@ -1055,13 +1046,13 @@
     </dialog>
     <dialog id="model-dialog">
       <div class="inline-controls">
-        <h2>Choose intelligence</h2>
+        <h2>Choose model</h2>
         <button id="close-model-picker" aria-label="Close model picker">
           ×
         </button>
       </div>
       <label
-        >Provider<select id="picker-provider">
+        >Mode or provider<select id="picker-provider">
           <option value="auto">Auto</option>
         </select></label
       ><label id="picker-model-label"
@@ -1071,8 +1062,8 @@
           <option value="auto">Auto</option>
         </select></label
       >
-      <p id="picker-capabilities" class="secondary"></p>
-      <button id="apply-model" class="primary">Use selection</button>
+      <p id="picker-capabilities" class="secondary" aria-live="polite"></p>
+      <button id="apply-model" class="primary">Use model</button>
     </dialog>
     <div id="sidebar-tooltip" role="tooltip" hidden></div>
     <script src="../vendor/marked.umd.js"></script>

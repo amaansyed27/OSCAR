@@ -51,14 +51,22 @@ async function ask(text) {
     if (!process.env.OSCAR_REVIEW_RESUME) {
       await p.locator("[data-page=settings]").click();
       await p.locator('[data-settings="model"]').click();
-      await p.locator("#model").selectOption("groq::openai/gpt-oss-120b");
+      await p.locator("#change-model").click();
+      await p.locator("#picker-provider").selectOption("groq");
+      await p.locator("#picker-model").selectOption("groq::openai/gpt-oss-120b");
+      await p.locator("#apply-model").click();
+      await p.locator("#model-dialog").waitFor({ state: "hidden" });
       assert.match(
         await ask("Reply with exactly: model selection works."),
         /model selection works/i,
       );
       await p.locator("[data-page=settings]").click();
       await p.locator('[data-settings="model"]').click();
-      await p.locator("#model").selectOption("groq::openai/gpt-oss-20b");
+      await p.locator("#change-model").click();
+      await p.locator("#picker-provider").selectOption("groq");
+      await p.locator("#picker-model").selectOption("groq::openai/gpt-oss-20b");
+      await p.locator("#apply-model").click();
+      await p.locator("#model-dialog").waitFor({ state: "hidden" });
       await ask(
         "Remember that I prefer concise responses with practical examples.",
       );

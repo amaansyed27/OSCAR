@@ -347,7 +347,7 @@ Ok(())}
             .model()
             .complete(
                 json!([{
-                "role":"system","content":MEMORY_PROMPT}
+                "role":"system","content":format!("Return a JSON object only. {MEMORY_PROMPT}")}
                 ,{
                 "role":"user","content":json!({
                 "existing":existing,"current":text}

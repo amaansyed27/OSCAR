@@ -24,6 +24,7 @@ function resetCredentialEditor() {
     "Add an API key";
 }
 function describeRouting() {
+  $("current-model-name").textContent = selectionLabel(settings.model);
   const descriptions = {
     "auto:free": "Uses only currently verified free models.",
     "auto:efficient": "Chooses a suitable model with known pricing.",
@@ -55,21 +56,6 @@ async function refreshPlatform() {
   ]);
   const current = await api.settings();
   settings = current;
-  const selections = [
-    ["auto:efficient", "Auto · Efficient"],
-    ["auto:free", "Auto · Free"],
-    ["auto:super", "Auto · Super"],
-    ...platformModels
-      .filter((m) => m.enabled)
-      .map((m) => [m.id, selectionLabel(m.id)]),
-  ];
-  optionsFor(
-    $("model"),
-    selections,
-    current.model.includes("::") || current.model.startsWith("auto:")
-      ? current.model
-      : "groq::" + current.model,
-  );
   optionsFor(
     $("waterfall-model"),
     platformModels
@@ -106,6 +92,7 @@ function renderProvider() {
   const restricted = p.protocol === "restricted";
   const enabledKeys = (p.credentials || []).filter((c) => c.enabled);
   const active = enabledKeys.length;
+  $("provider-next").hidden = !active || search || restricted;
   const keySelect = $("test-credential");
   optionsFor(
     keySelect,
@@ -168,8 +155,8 @@ function renderProvider() {
     const detail = document.createElement("small");
     detail.textContent =
       (c.source.startsWith("environment:")
-        ? "Environment"
-        : "Windows protected") +
+        ? "From local configuration"
+        : "Saved on this device") +
       (c.duplicate ? " · Duplicate slot" : "") +
       (c.last_success ? " · Connected " + c.last_success : "") +
       (c.last_error ? " · " + c.last_error : "");
@@ -219,6 +206,7 @@ function renderProvider() {
     empty.className = "settings-empty-state";
     empty.textContent = "No API keys for this provider yet.";
     list.append(empty);
+    if (!restricted) $("credential-editor").open = true;
   }
   platformStatus(
     p.protocol === "restricted"
@@ -229,6 +217,10 @@ function renderProvider() {
   );
   renderProviderModels();
 }
+$("provider-next").onclick = () => {
+  showProviderTab("models");
+  $("discover-models").focus();
+};
 function renderProviderModels() {
   const q = $("model-search").value.toLowerCase();
   const matches = platformModels.filter(
@@ -537,11 +529,12 @@ $("waterfall-add").onclick = () => {
 };
 $("spending-ceiling").onchange = () =>
   saveSettings({ spending_ceiling: $("spending-ceiling").value });
-$("model-picker").onclick = () => {
+function openModelPicker() {
   optionsFor($("picker-provider"), [
-    ["auto", "Auto"],
+    ["auto", "Automatic routing"],
     ...platformProviders
-      .filter((p) => p.kind === "inference" && p.protocol !== "restricted")
+      .filter((p) => p.kind === "inference" && p.protocol !== "restricted" &&
+        platformModels.some((m) => m.provider === p.id && m.enabled))
       .map((p) => [p.id, p.name]),
   ]);
   const id = settings.model.includes("::")
@@ -550,64 +543,40 @@ $("model-picker").onclick = () => {
   $("picker-provider").value = settings.model.startsWith("auto:")
     ? "auto"
     : id.split("::")[0];
+  if (!$("picker-provider").value) $("picker-provider").value = "auto";
   populatePicker(id);
   $("model-dialog").showModal();
-};
+}
+$("model-picker").onclick = openModelPicker;
+$("change-model").onclick = openModelPicker;
 function populatePicker(selected) {
   const provider = $("picker-provider").value;
   optionsFor(
     $("picker-model"),
     provider === "auto"
       ? [
-          ["auto:efficient", "Efficient"],
-          ["auto:free", "Free"],
-          ["auto:super", "Super"],
+          ["auto:efficient", "Lowest known cost"],
+          ["auto:free", "Free only"],
+          ["auto:super", "Highest rated"],
         ]
       : platformModels
           .filter((m) => m.enabled && m.provider === provider)
           .map((m) => [m.id, m.name]),
     selected || settings.model,
   );
+  if (!$("picker-model").value) $("picker-model").selectedIndex = 0;
   reasoningPicker();
 }
 function reasoningPicker() {
   const m = platformModels.find((m) => m.id === $("picker-model").value);
   const levels = m?.reasoning || [];
+  $("apply-model").disabled = !$("picker-model").value;
   optionsFor(
     $("picker-reasoning"),
     [["auto", "Auto"], ...levels.map((l) => [l, l])],
     settings.reasoning || "auto",
   );
   $("picker-reasoning-label").hidden = !levels.length;
-  let slider = $("reasoning-slider");
-  if (!slider) {
-    slider = document.createElement("input");
-    slider.id = "reasoning-slider";
-    slider.type = "range";
-    slider.setAttribute("aria-label", "Reasoning effort");
-    $("picker-reasoning-label").append(slider);
-  }
-  slider.hidden = levels.length < 2;
-  slider.min = 0;
-  slider.max = levels.length;
-  slider.step = 1;
-  slider.value = Math.max(
-    0,
-    ["auto", ...levels].indexOf($("picker-reasoning").value),
-  );
-  slider.setAttribute("aria-valuetext", $("picker-reasoning").value);
-  slider.oninput = () => {
-    $("picker-reasoning").value = ["auto", ...levels][Number(slider.value)];
-    slider.setAttribute("aria-valuetext", $("picker-reasoning").value);
-  };
-  $("picker-reasoning").onchange = () => {
-    slider.value = Math.max(
-      0,
-      ["auto", ...levels].indexOf($("picker-reasoning").value),
-    );
-    slider.setAttribute("aria-valuetext", $("picker-reasoning").value);
-  };
-
   $("picker-capabilities").textContent = m
     ? [
         m.vision
@@ -618,9 +587,9 @@ function reasoningPicker() {
         m.context
           ? `${m.context.toLocaleString()} context tokens`
           : "Set context limits in AI Providers",
-        m.evidence,
+
       ].join(" · ")
-    : "Auto uses enabled, configured models. Free never falls back to paid inference. Efficient requires known pricing; Super requires recorded quality evidence.";
+    : $("picker-model").value ? "OSCAR chooses from enabled models with configured providers." : "No models available. Enable a model in Providers & API keys.";
 }
 $("picker-provider").onchange = () => populatePicker();
 $("picker-model").onchange = reasoningPicker;
@@ -628,19 +597,18 @@ $("close-model-picker").onclick = () => $("model-dialog").close();
 $("apply-model").onclick = async () => {
   const model = $("picker-model").value;
   if (!model) return;
-  await saveSettings({
-    model,
-    reasoning: $("picker-reasoning").value || "auto",
-  });
+  $("apply-model").disabled = true;
+  try {
+    await saveSettings({ model, reasoning: $("picker-reasoning").value || "auto" }, true);
+  } catch (error) {
+    $("picker-capabilities").textContent = error.message;
+    return;
+  } finally {
+    $("apply-model").disabled = false;
+  }
   $("model-picker").textContent = selectionLabel(model);
-  $("model").value = model;
   describeRouting();
   $("model-dialog").close();
-};
-$("model").onchange = async () => {
-  await saveSettings({ model: $("model").value, reasoning: "auto" });
-  $("model-picker").textContent = selectionLabel(settings.model);
-  describeRouting();
 };
 $("search-mode").onchange = () =>
   saveSettings({ search_mode: $("search-mode").value });
