@@ -330,6 +330,10 @@ function render() {
   const scroll = $("chat-scroll"),
     position = scroll.scrollTop,
     follow = nearBottom();
+  const expandedActivity = new Set(Array.from(
+    $("messages").querySelectorAll(".reply-activity[open]"),
+    (details) => details.closest(".message").dataset.id,
+  ));
   $("messages").replaceChildren();
   $("welcome").hidden = rows.length > 0;
   $("page-conversation").classList.toggle(
@@ -360,7 +364,10 @@ function render() {
       orb.alt = "OSCAR";
       const body = markdown(row.content);
       body.className = "body";
-      article.append(orb, body);
+      article.append(orb);
+      if (row.status === "complete")
+        article.append(replyActivity(row, expandedActivity.has(String(row.id))));
+      article.append(body);
     }
     for (const file of row.attachments || []) {
       article.append(
@@ -379,8 +386,6 @@ function render() {
     meta.append(time);
     if (typeof row.id === "number")
       meta.append(button("Source", () => showSource(row.id)));
-    if (row.role === "assistant" && row.status === "complete")
-      meta.append(button("Details", () => showResponseDetails(row.id)));
     if (["failed", "interrupted"].includes(row.status)) {
       meta.append(
         document.createTextNode(
@@ -857,36 +862,64 @@ for (const id of ["personal-tab", "history-tab"])
     }
   };
 
-async function showResponseDetails(id) {
-  const data = await api.responseDetails(id);
-  const dialog = document.createElement("dialog");
-  dialog.className = "attachment-preview";
-  const h = document.createElement("h2");
-  h.textContent = "Response details";
-  const text = document.createElement("p");
-  const u = data?.usage;
-  text.textContent = u
-    ? `${selectionLabel(`${u.provider}::${u.model}`)} · ${u.prompt_tokens ?? "Unknown"} input tokens · ${u.completion_tokens ?? "Unknown"} output/reasoning tokens`
-    : "Usage was not recorded for this older response.";
-  const cost = document.createElement("p");
-  cost.className = "secondary";
-  cost.textContent = u
-    ? typeof u.cost === "number"
-      ? `Provider-reported inference cost: $${u.cost}`
-      : typeof u.estimated_cost === "number"
-        ? `Estimated inference cost: $${u.estimated_cost.toFixed(6)}. Provider billing is authoritative.`
-        : "Inference price unavailable."
-    : "";
-  const strategy = document.createElement("p");
-  strategy.textContent = data?.decision
-    ? `${data.decision.task}. ${data.decision.explanation}`
-    : "";
-  const close = button("Close", () => {
-    dialog.close();
-    dialog.remove();
-  });
-  dialog.append(h, text, cost, strategy, close);
-  document.body.append(dialog);
-  dialog.showModal();
-  dialog.addEventListener("cancel", () => dialog.remove());
+function replyActivity(row, open) {
+  const details = document.createElement("details");
+  details.className = "reply-activity";
+  const summary = document.createElement("summary");
+  const elapsed = row.elapsed_ms;
+  const seconds = elapsed / 1000;
+  summary.textContent = Number.isFinite(elapsed)
+    ? `Worked for ${seconds < 60 ? `${Math.max(0.1, seconds).toFixed(1)}s` : `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`}`
+    : "Reply activity";
+  const list = document.createElement("dl");
+  details.append(summary, list);
+  const add = (label, value) => {
+    if (value == null || value === "") return;
+    const term = document.createElement("dt");
+    const description = document.createElement("dd");
+    term.textContent = label;
+    description.textContent = value;
+    list.append(term, description);
+  };
+  let loaded = false;
+  async function load() {
+    if (loaded || !details.open) return;
+    loaded = true;
+    add("Status", "Loading…");
+    try {
+      const data = await api.responseDetails(row.id);
+      list.replaceChildren();
+      const usage = data?.usage;
+      if (!data) {
+        add("Status", "Activity was not recorded for this reply.");
+        return;
+      }
+      if (usage?.model)
+        add("Model used", selectionLabel(`${usage.provider}::${usage.model}`));
+      const first = data.route?.[0];
+      if (first && usage?.model && first !== `${usage.provider}::${usage.model}`)
+        add("First route", selectionLabel(first));
+      const requests = data.foreground_requests ?? usage?.answer_requests;
+      if (Number.isInteger(requests)) add("Model calls", String(requests));
+      if (usage?.output_limit_recovery) add("Recovery", "Retried with a shorter answer request");
+      if (data.decision?.task) add("Task", data.decision.task);
+      if (data.decision?.search && data.sources?.length)
+        add("Web research", `${data.sources.length} sources gathered`);
+      const reasoning = usage?.completion_tokens_details?.reasoning_tokens;
+      if (Number.isInteger(reasoning)) add("Reasoning tokens", reasoning.toLocaleString());
+      if (Number.isInteger(usage?.completion_tokens))
+        add("Output tokens", usage.completion_tokens.toLocaleString());
+      if (typeof usage?.cost === "number") add("Reported inference cost", `$${usage.cost}`);
+      else if (typeof usage?.estimated_cost === "number")
+        add("Estimated inference cost", `$${usage.estimated_cost.toFixed(6)}`);
+      if (!list.children.length) add("Status", "No activity details available.");
+    } catch {
+      list.replaceChildren();
+      add("Status", "Could not load activity. Reopen to try again.");
+      loaded = false;
+    }
+  }
+  details.addEventListener("toggle", load);
+  details.open = open;
+  return details;
 }

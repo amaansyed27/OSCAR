@@ -305,7 +305,15 @@ Ok(())}
                             arg["after"] = json!(n(&arg, "after")
                                 .max(s.get("display_start", "0").parse().unwrap_or(0) - 1));
                         }
-                        {let mut history=s.history(&arg)?;for row in &mut history{row["attachments"]=json!(s.all("SELECT a.id,a.name,a.mime,a.bytes FROM message_attachments l JOIN attachments a ON a.id=l.attachment WHERE l.message=?",&[&n(row,"id")])?);}Ok(json!(history))}
+                        let mut history = s.history(&arg)?;
+                        for row in &mut history {
+                            let id = n(row, "id");
+                            row["attachments"] = json!(s.all("SELECT a.id,a.name,a.mime,a.bytes FROM message_attachments l JOIN attachments a ON a.id=l.attachment WHERE l.message=?", &[&id])?);
+                            if st(row, "role") == "assistant" && st(row, "status") == "complete" {
+                                row["elapsed_ms"] = s.one("SELECT json_extract(metadata,'$.elapsed_ms') AS elapsed_ms FROM response_details WHERE message=?", &[&id])?["elapsed_ms"].clone();
+                            }
+                        }
+                        Ok(json!(history))
                     }
                     "around" => Ok(json!(s.around(arg.as_i64().unwrap_or(0), 12)?)),
                     "source" => s.message(arg.as_i64().unwrap_or(0)),
@@ -788,9 +796,9 @@ Ok(())}
                 .into_owned();
             let answer=if decision.search{crate::research::ground_links(&answer,&research.sources)}else{answer};
             let answer=crate::documents::ground_references(&answer,&document_evidence);
-            let details=json!({"decision":decision,"sources":research.sources,"warnings":research.warnings,"document_sources":document_evidence,"attachments":attachment_ids,"usage":usage,"route":model.targets.iter().map(|t|&t.spec.id).collect::<Vec<_>>()});
-            let input_bytes = messages.to_string().len() as i64;
             let total = started.elapsed().as_secs_f64() * 1000.;
+            let details=json!({"elapsed_ms":total,"foreground_requests":requests,"decision":decision,"sources":research.sources,"warnings":research.warnings,"document_sources":document_evidence,"attachments":attachment_ids,"usage":usage,"route":model.targets.iter().map(|t|&t.spec.id).collect::<Vec<_>>()});
+            let input_bytes = messages.to_string().len() as i64;
             let ctx = context.clone();
             let text = text.clone();
             let result=self.db(move|s|{
@@ -816,8 +824,10 @@ Ok(())}
         if !text.trim().ends_with('?')&&re(r"(?i)\b(I |my |remember |prefer|project|goal|need to)\b").is_match(&text){
         s.enqueue(id)?;
         }
+        let mut reply = s.message(assistant)?;
+        reply["elapsed_ms"] = json!(total);
         Ok(json!({
-        "user":s.message(id)?,"assistant":s.message(assistant)?,"inputBytes":input_bytes,"promptTokens":usage["prompt_tokens"]}
+        "user":s.message(id)?,"assistant":reply,"inputBytes":input_bytes,"promptTokens":usage["prompt_tokens"]}
         ))}
         ).await?;
             (self.emit)(json!({

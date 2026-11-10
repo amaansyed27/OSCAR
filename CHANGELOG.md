@@ -2,6 +2,10 @@
 
 Entries describe each stage at its date. Later entries supersede earlier behavior and limitations.
 
+## 2026-11-10 — Reply activity
+
+- Moved model, timing, calls, and other recorded reply details into a collapsed section above the answer.
+
 ## 2026-11-10 — Output limit recovery
 
 - If a model exhausts its output before showing a reply, OSCAR can retry once with the same evidence and a shorter answer request. Configured context and spending limits still apply.
