@@ -234,7 +234,7 @@ pub fn commit(s: &Store, staged: Staged) -> Result<Value> {
             "INSERT INTO attachments(id,name,mime,bytes,path,sha256) VALUES(?,?,?,?,?,?)",
             rusqlite::params![id, name, kind, bytes as i64, path.to_string_lossy(), digest],
         )?;
-        let chars: Vec<char> = text.chars().collect();
+        let chars: Vec<char> = text.trim().chars().collect();
         for (ordinal, start) in (0..chars.len()).step_by(1800).enumerate() {
             let end = (start + 2200).min(chars.len());
             let chunk: String = chars[start..end].iter().collect();
@@ -246,7 +246,7 @@ pub fn commit(s: &Store, staged: Staged) -> Result<Value> {
         Ok(())
     })?;
     Ok(
-        json!({"id":id,"name":name,"mime":kind,"bytes":bytes,"chunks":text.chars().count().div_ceil(1800)}),
+        json!({"id":id,"name":name,"mime":kind,"bytes":bytes,"chunks":text.trim().chars().count().div_ceil(1800)}),
     )
 }
 pub fn isolated_extract(path: &Path, name: &str) -> Result<String> {
@@ -314,12 +314,13 @@ pub fn evidence(
     ids: &[String],
     text: &str,
     budget: usize,
-) -> Result<(Value, Vec<Value>)> {
+) -> Result<(Value, Vec<Value>, Vec<Value>)> {
     if ids.len() > 8 {
         return Err(anyhow!("Attach at most eight files per message."));
     }
     let mut evidence = vec![];
     let mut images = vec![];
+    let mut visual_documents = vec![];
     let mut used = 0;
     for id in ids {
         let a = s.one(
@@ -333,7 +334,7 @@ pub fn evidence(
             if n(&a, "bytes") > 20_000_000 {
                 return Err(anyhow!("Image exceeds 20 MB."));
             }
-            images.push(json!({"type":"image_url","image_url":{"url":format!("data:{};base64,{}",st(&a,"mime"),STANDARD.encode(std::fs::read(st(&a,"path"))?))}}));
+            images.push(json!({"name":a["name"],"type":"image_url","image_url":{"url":format!("data:{};base64,{}",st(&a,"mime"),STANDARD.encode(std::fs::read(st(&a,"path"))?))}}));
             continue;
         }
         let q = query(text);
@@ -362,9 +363,151 @@ pub fn evidence(
             )?,
             "n",
         );
+        let visual_request = re(r"(?i)\b(figure|diagram|chart|scan|ocr|layout|illustration|visual|embedded image|page\s+\d+)\b").is_match(text);
+        if (a["mime"] == "application/pdf" && (total == 0 || visual_request))
+            || (st(&a, "mime").contains("openxmlformats") && visual_request)
+        {
+            visual_documents.push(a.clone());
+        }
         evidence.push(json!({"attachment":id,"name":a["name"],"total_chunks":total,"retrieval":"Selected passages only when the document exceeds available context. Original file retained; do not claim all pages were reviewed."}));
     }
-    Ok((json!(evidence), images))
+    Ok((json!(evidence), images, visual_documents))
+}
+
+/// Render an explicitly bounded PDF preview outside the database lock.
+pub fn render_pdf_preview(pdf: &Value, requested_page: Option<usize>) -> Result<Vec<Value>> {
+    use std::process::{Command, Stdio};
+    let temp = tempfile::tempdir()?;
+    let prefix = temp.path().join("page");
+    let mut command = Command::new("pdftoppm");
+    let first = requested_page.unwrap_or(1);
+    let last = requested_page.unwrap_or(2);
+    command
+        .args([
+            "-f",
+            &first.to_string(),
+            "-l",
+            &last.to_string(),
+            "-scale-to",
+            "1600",
+            "-png",
+        ])
+        .arg(st(pdf, "path"))
+        .arg(&prefix)
+        .env_clear()
+        .env("PATH", std::env::var_os("PATH").unwrap_or_default())
+        .env(
+            "SystemRoot",
+            std::env::var_os("SystemRoot").unwrap_or_default(),
+        )
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000);
+    }
+    let mut child = command
+        .spawn()
+        .map_err(|_| anyhow!("PDF visual review requires Poppler's pdftoppm on PATH."))?;
+    #[cfg(windows)]
+    let _limits = ParserJob::attach(&child).inspect_err(|_| {
+        let _ = child.kill();
+        let _ = child.wait();
+    })?;
+    let start = std::time::Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
+        }
+        if start.elapsed().as_secs() >= 12 {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(anyhow!("PDF preview rendering timed out."));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    };
+    if !status.success() {
+        return Err(anyhow!(
+            "Could not render the PDF preview. Check that the PDF opens and is unlocked."
+        ));
+    }
+    let mut files = std::fs::read_dir(temp.path())?.collect::<std::io::Result<Vec<_>>>()?;
+    files.sort_by_key(|file| file.file_name());
+    let rendered_last = first + files.len().min(2).saturating_sub(1);
+    let mut pages = Vec::new();
+    for (index, file) in files.into_iter().take(2).enumerate() {
+        if file.metadata()?.len() > 8_000_000 {
+            return Err(anyhow!("Rendered PDF page exceeds the image limit."));
+        }
+        let name = format!(
+            "{} (PDF page {}; visual preview covers only pages {}–{})",
+            st(pdf, "name"),
+            first + index,
+            first,
+            rendered_last
+        );
+        let data = STANDARD.encode(std::fs::read(file.path())?);
+        pages.push(json!({"name":name,"type":"image_url","image_url":{"url":format!("data:image/png;base64,{data}")}}));
+    }
+    if pages.is_empty() {
+        return Err(anyhow!("PDF had no renderable preview pages."));
+    }
+    Ok(pages)
+}
+
+/// Read embedded raster media from an already-supported Office document.
+pub fn embedded_visuals(document: &Value) -> Result<Vec<Value>> {
+    let bytes = std::fs::read(st(document, "path"))?;
+    if bytes.len() > MAX_FILE {
+        return Err(anyhow!("Office document exceeds the attachment limit."));
+    }
+    zip_guard(&bytes)?;
+    let mut archive = zip::ZipArchive::new(Cursor::new(bytes))?;
+    let mut previews = Vec::new();
+    for index in 0..archive.len() {
+        let mut entry = archive.by_index(index)?;
+        let path = entry.name().to_owned();
+        if !["word/media/", "xl/media/", "ppt/media/"]
+            .iter()
+            .any(|prefix| path.starts_with(prefix))
+            || entry.size() > 4_000_000
+        {
+            continue;
+        }
+        let mut bytes = Vec::new();
+        (&mut entry).take(4_000_001).read_to_end(&mut bytes)?;
+        if bytes.len() > 4_000_000 {
+            continue;
+        }
+        let Ok(kind) = mime(&path, &bytes) else {
+            continue;
+        };
+        if !kind.starts_with("image/") {
+            continue;
+        }
+        let Ok((width, height)) = image::ImageReader::new(Cursor::new(&bytes))
+            .with_guessed_format()?
+            .into_dimensions()
+        else {
+            continue;
+        };
+        if width == 0 || height == 0 || u64::from(width) * u64::from(height) > 32_000_000 {
+            continue;
+        }
+        let name = format!(
+            "{} (embedded image {}; document layout and other media not reviewed)",
+            st(document, "name"),
+            path.rsplit('/').next().unwrap_or("image")
+        );
+        let data = STANDARD.encode(bytes);
+        previews.push(json!({"name":name,"type":"image_url","image_url":{"url":format!("data:{kind};base64,{data}")}}));
+        if previews.len() == 2 {
+            break;
+        }
+    }
+    Ok(previews)
 }
 
 #[cfg(windows)]

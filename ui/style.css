@@ -362,20 +362,19 @@ a {
   margin: auto;
 }
 #composer {
-  border: 1px solid var(--strong);
-  border-radius: 12px;
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  padding: 10px;
-  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  display: grid;
+  gap: 4px;
+  padding: 9px 12px;
+  background: var(--surface);
 }
 #composer:focus-within {
   border-color: var(--focus);
   box-shadow: 0 0 0 1px var(--focus);
 }
 #message {
-  flex: 1;
+  width: 100%;
   min-width: 0;
   min-height: 40px;
   max-height: 180px;
@@ -398,8 +397,8 @@ a {
   background: var(--action);
   color: var(--on-action);
   padding: 0;
-  border-radius: 7px;
-  margin-bottom: 3px;
+  border-radius: 50%;
+  margin: 0;
 }
 #send {
   font: 23px sans-serif;
@@ -1522,7 +1521,7 @@ body.collapsed .sidebar-top .identity {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 2px 0;
+  padding: 0;
   color: var(--muted);
 }
 .composer-tools button,
@@ -1539,8 +1538,17 @@ body.collapsed .sidebar-top .identity {
   font: 22px sans-serif;
   min-width: 32px;
 }
-.composer-tools select {
+.composer-tools #model-picker {
   margin-left: auto;
+  border-radius: 999px;
+  background: var(--hover);
+  white-space: nowrap;
+}
+.composer-tools #send, .composer-tools #stop {
+  background: var(--action);
+  color: var(--on-action);
+  font-size: 17px;
+  padding: 0;
 }
 #attachment-list {
   display: flex;
@@ -1653,6 +1661,48 @@ summary {
 #model-dialog select {
   width: 100%;
 }
+#model-dialog.composer-picker {
+  position: fixed;
+  inset: auto var(--picker-right) var(--picker-bottom) auto;
+  margin: 0;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(580px, calc(100dvh - var(--picker-bottom) - 12px));
+  border-radius: 18px;
+}
+#model-dialog.composer-picker::backdrop { background: transparent; }
+#model-dialog .picker-price {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 12px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+#model-dialog .picker-price[hidden] { display: none; }
+.picker-price input {
+  appearance: none;
+  width: 34px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--hover);
+  border: 1px solid var(--strong);
+  cursor: pointer;
+}
+.picker-price input::before {
+  content: "";
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin: 2px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+.picker-price input:checked::before { transform: translateX(15px); }
+.picker-effort { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.picker-effort input { grid-column: 1 / -1; width: 100%; accent-color: var(--focus); }
+.picker-effort output { color: var(--muted); }
+.waterfall-profiles { margin: 12px 0; flex-wrap: wrap; }
 #picker-capabilities {
   overflow-wrap: anywhere;
   font-size: 12px;

@@ -39,6 +39,59 @@ fn numbered_credentials_and_duplicates() {
 }
 
 #[test]
+fn office_visual_review_reads_only_supported_embedded_images() {
+    use std::io::Write;
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("sample.docx");
+    let mut zip = zip::ZipWriter::new(std::fs::File::create(&file).unwrap());
+    let options = zip::write::SimpleFileOptions::default();
+    for name in ["word/media/figure.png", "word/unrelated.png"] {
+        zip.start_file(name, options).unwrap();
+        zip.write_all(include_bytes!("../../tests/attachments/square.png"))
+            .unwrap();
+    }
+    zip.finish().unwrap();
+    let previews =
+        oscar_core::documents::embedded_visuals(&json!({"name":"sample.docx","path":file}))
+            .unwrap();
+    assert_eq!(previews.len(), 1);
+    assert!(previews[0]["name"].as_str().unwrap().contains("figure.png"));
+    assert!(previews[0]["image_url"]["url"]
+        .as_str()
+        .unwrap()
+        .starts_with("data:image/png;base64,"));
+}
+
+#[test]
+fn named_waterfall_preserves_order_and_skips_disabled_steps() {
+    let (_dir, platform) = platform();
+    platform
+        .store
+        .lock()
+        .unwrap()
+        .set(
+            "waterfall_profiles",
+            json!([{
+                "id":"writing","name":"Writing","models":[
+                    {"model":"groq::openai/gpt-oss-20b","enabled":false},
+                    {"model":"groq::openai/gpt-oss-120b","reasoning":"low"},
+                    {"model":"groq::openai/gpt-oss-120b","reasoning":"high"}
+                ]
+            }]),
+        )
+        .unwrap();
+    let (targets, _) = platform
+        .targets("waterfall:writing", "Write a note", false, false)
+        .unwrap();
+    assert_eq!(targets.len(), 1);
+    assert_eq!(targets[0].spec.model, "openai/gpt-oss-120b");
+    assert_eq!(targets[0].reasoning.as_deref(), Some("low"));
+    assert!(platform
+        .targets("waterfall:missing", "Write a note", false, false)
+        .is_err());
+}
+
+#[test]
 fn task_ratings_override_overall_without_weakening_constraints() {
     let mut a = Spec::manual("one", "general");
     a.context = Some(32000);

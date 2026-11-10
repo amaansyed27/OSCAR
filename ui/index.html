@@ -208,41 +208,42 @@
               placeholder="Write to OSCAR"
               maxlength="2000000"
             ></textarea
-            ><button id="send" aria-label="Send message" title="Send message">
-              ↑</button
-            ><button
-              id="stop"
-              type="button"
-              aria-label="Stop response"
-              title="Stop response"
-              hidden
             >
-              ■
-            </button>
+            <div class="composer-tools">
+              <button
+                id="attach-file" type="button"
+                aria-label="Attach files"
+                title="Attach files"
+              >
+                +
+              </button>
+              <input
+                id="file-input"
+                type="file"
+                multiple
+                hidden
+                accept=".txt,.md,.csv,.tsv,.json,.jsonl,.log,.rs,.py,.js,.ts,.css,.html,.xml,.yaml,.yml,.toml,.sql,.pdf,.docx,.xlsx,.pptx,image/png,image/jpeg,image/webp,image/gif"
+              />
+              <button id="model-picker" type="button" aria-haspopup="dialog">Model</button>
+              <label class="sr-only" for="search-mode">Search mode</label
+              ><select id="search-mode">
+                <option value="auto">Auto search</option>
+                <option value="on">Search on</option>
+                <option value="off">Search off</option>
+              </select>
+              <button id="send" aria-label="Send message" title="Send message">
+                ↑</button
+              ><button
+                id="stop"
+                type="button"
+                aria-label="Stop response"
+                title="Stop response"
+                hidden
+              >
+                ■
+              </button>
+            </div>
           </form>
-          <div class="composer-tools">
-            <button
-              id="attach-file"
-              aria-label="Attach files"
-              title="Attach files"
-            >
-              +
-            </button>
-            <input
-              id="file-input"
-              type="file"
-              multiple
-              hidden
-              accept=".txt,.md,.csv,.tsv,.json,.jsonl,.log,.rs,.py,.js,.ts,.css,.html,.xml,.yaml,.yml,.toml,.sql,.pdf,.docx,.xlsx,.pptx,image/png,image/jpeg,image/webp,image/gif"
-            />
-            <button id="model-picker" aria-haspopup="dialog">Model</button>
-            <label class="sr-only" for="search-mode">Search mode</label
-            ><select id="search-mode">
-              <option value="auto">Auto search</option>
-              <option value="on">Search on</option>
-              <option value="off">Search off</option>
-            </select>
-          </div>
         </div>
       </section>
       <section id="page-memories" class="page scroll-page" hidden>
@@ -912,6 +913,19 @@
                 Try these in order when a manually selected model fails before
                 it starts replying.
               </p>
+              <div class="inline-controls waterfall-profiles">
+                <label for="waterfall-profile">Waterfall</label>
+                <select id="waterfall-profile"></select>
+                <button id="waterfall-new" type="button">New waterfall</button>
+                <button id="waterfall-rename" type="button" hidden>Rename</button>
+                <button id="waterfall-delete" type="button" hidden>Delete</button>
+              </div>
+              <form id="waterfall-editor" class="inline-controls" hidden>
+                <label for="waterfall-name">Name</label>
+                <input id="waterfall-name" required maxlength="48" />
+                <button class="primary">Save</button>
+                <button id="waterfall-cancel" type="button">Cancel</button>
+              </form>
               <div id="waterfall-list"></div>
               <div class="inline-controls">
                 <select
@@ -1044,9 +1058,9 @@
         ><button id="confirm-yes" class="primary">Confirm</button>
       </div>
     </dialog>
-    <dialog id="model-dialog">
+    <dialog id="model-dialog" aria-labelledby="picker-title">
       <div class="inline-controls">
-        <h2>Choose model</h2>
+        <h2 id="picker-title">Choose model</h2>
         <button id="close-model-picker" aria-label="Close model picker">
           ×
         </button>
@@ -1055,13 +1069,19 @@
         >Mode or provider<select id="picker-provider">
           <option value="auto">Auto</option>
         </select></label
-      ><label id="picker-model-label"
-        >Model<select id="picker-model"></select></label
-      ><label id="picker-reasoning-label"
-        >Reasoning<select id="picker-reasoning">
-          <option value="auto">Auto</option>
-        </select></label
       >
+      <label id="picker-price-label" class="picker-price" hidden>
+        <span>Free</span><input id="picker-paid" type="checkbox" role="switch" aria-label="Show paid models" /><span>Paid</span>
+      </label>
+      <button id="picker-unpriced" class="subtle" type="button" hidden>Show models with unknown pricing</button>
+      <label id="picker-model-label"
+        >Model<select id="picker-model"></select></label
+      >
+      <div id="picker-reasoning-label" class="picker-effort">
+        <label for="picker-reasoning">Reasoning effort</label>
+        <output id="picker-effort-value" for="picker-reasoning">Instant</output>
+        <input id="picker-reasoning" type="range" min="0" max="0" step="1" value="0" />
+      </div>
       <p id="picker-capabilities" class="secondary" aria-live="polite"></p>
       <button id="apply-model" class="primary">Use model</button>
     </dialog>

@@ -246,8 +246,52 @@ impl Runtime {
                         }
                     }
                 }
+                if let Some(profiles) = arg["waterfall_profiles"].as_array() {
+                    if profiles.len() > 12
+                        || profiles.iter().any(|profile| {
+                            let id = st(profile, "id");
+                            let name = st(profile, "name");
+                            id.is_empty()
+                                || id.len() > 64
+                                || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+                                || name.trim().is_empty()
+                                || name.chars().count() > 48
+                                || !profile["models"].as_array().is_some_and(|models| {
+                                    models.len() <= 8
+                                        && models.iter().all(|entry| {
+                                            entry.is_object() && !st(entry, "model").is_empty()
+                                        })
+                                })
+                        })
+                    {
+                        return Err(anyhow!("Invalid custom waterfall."));
+                    }
+                } else if !arg["waterfall_profiles"].is_null() {
+                    return Err(anyhow!("Invalid custom waterfalls."));
+                }
                 if let Some(model) = arg["model"].as_str() {
-                    if !model.starts_with("auto:") {
+                    if let Some(id) = model.strip_prefix("waterfall:") {
+                        let profiles = if arg["waterfall_profiles"].is_array() {
+                            arg["waterfall_profiles"].clone()
+                        } else {
+                            self.db(|s| {
+                                Ok(serde_json::from_str::<Value>(
+                                    &s.get("waterfall_profiles", "[]"),
+                                )?)
+                            })
+                            .await?
+                        };
+                        if !profiles.as_array().into_iter().flatten().any(|p| {
+                            p["id"] == id
+                                && p["models"].as_array().is_some_and(|models| {
+                                    models.iter().any(|m| m["enabled"] != false)
+                                })
+                        }) {
+                            return Err(anyhow!(
+                                "Add an enabled model to this waterfall before selecting it."
+                            ));
+                        }
+                    } else if !model.starts_with("auto:") {
                         if let Some(platform) = &self.model().platform {
                             platform.spec(model)?;
                         }
@@ -262,7 +306,7 @@ impl Runtime {
                     self.maintenance_cancel.lock().unwrap().cancel();
                 }
                 self.db(move|s|{
-for key in ["search_mode","search_paid_credits","reasoning","waterfall","spending_ceiling","personalization","rich_ui"] { if !arg[key].is_null(){let value=if let Some(v)=arg[key].as_str(){v.to_owned()}else{arg[key].to_string()};if value.len()>12000{return Err(anyhow!("Setting is too large."))}s.set(key,value)?;} }
+for key in ["search_mode","search_paid_credits","reasoning","waterfall","waterfall_profiles","spending_ceiling","personalization","rich_ui"] { if !arg[key].is_null(){let value=if let Some(v)=arg[key].as_str(){v.to_owned()}else{arg[key].to_string()};if value.len()>12000{return Err(anyhow!("Setting is too large."))}s.set(key,value)?;} }
 if let Some(t)=arg["theme"].as_str(){
 if ["light","dark","system"].contains(&t){
 s.set("theme",t)?;
@@ -340,7 +384,7 @@ Ok(())}
     async fn settings(&self) -> Result<Value> {
         let m = self.model();
         self.db(move|s|Ok(json!({
-"search_paid_credits":s.get("search_paid_credits","0"),"search_mode":s.get("search_mode","auto"),"reasoning":s.get("reasoning","auto"),"waterfall":serde_json::from_str::<Value>(&s.get("waterfall","[]"))?,"spending_ceiling":s.get("spending_ceiling",""),"personalization":serde_json::from_str::<Value>(&s.get("personalization","{}"))?,"rich_ui":s.get("rich_ui","true")=="true","theme":s.get("theme","system"),"model":m.model,"learn":s.get("learn","true")=="true","inputTokens":s.get("input_tokens",&m.budget.to_string()).parse::<usize>().unwrap_or(16000)}
+"search_paid_credits":s.get("search_paid_credits","0"),"search_mode":s.get("search_mode","auto"),"reasoning":s.get("reasoning","auto"),"waterfall":serde_json::from_str::<Value>(&s.get("waterfall","[]"))?,"waterfall_profiles":serde_json::from_str::<Value>(&s.get("waterfall_profiles","[]"))?,"spending_ceiling":s.get("spending_ceiling",""),"personalization":serde_json::from_str::<Value>(&s.get("personalization","{}"))?,"rich_ui":s.get("rich_ui","true")=="true","theme":s.get("theme","system"),"model":m.model,"learn":s.get("learn","true")=="true","inputTokens":s.get("input_tokens",&m.budget.to_string()).parse::<usize>().unwrap_or(16000)}
 ))).await
     }
     async fn extract(
@@ -666,12 +710,47 @@ Ok(())}
             }
             let ids=attachment_ids.clone();
             let query=text.clone();
-            let (document_evidence, images)=self.db(move|s|crate::documents::evidence(s,&ids,&query,5000)).await?;
-            let (model,decision,classified)=self.model().prepare_decided(&text,!images.is_empty(),!attachment_ids.is_empty(),cancel).await?;
+            let (document_evidence, mut images, visual_documents)=self.db(move|s|crate::documents::evidence(s,&ids,&query,5000)).await?;
+            let has_document_previews = !visual_documents.is_empty();
+            if has_document_previews {
+                if visual_documents.len() > 2 { return Err(anyhow!("Attach at most two documents requiring visual review per turn.")); }
+                let page = re(r"(?i)\bpage\s+(\d{1,5})\b").captures(&text)
+                    .and_then(|m| m[1].parse::<usize>().ok()).filter(|page| *page > 0);
+                let pages = tokio::task::spawn_blocking(move || {
+                    let mut pages = Vec::new();
+                    for document in visual_documents {
+                        if document["mime"] == "application/pdf" {
+                            pages.extend(crate::documents::render_pdf_preview(&document, page)?);
+                        } else {
+                            pages.extend(crate::documents::embedded_visuals(&document)?);
+                        }
+                    }
+                    Ok::<_, anyhow::Error>(pages)
+                });
+                images.extend(tokio::select! {
+                    _ = cancel.cancelled() => return Err(anyhow!("Stopped")),
+                    result = pages => result??,
+                });
+            }
+            let (mut model,decision,classified)=self.model().prepare_decided(&text,false,!attachment_ids.is_empty(),cancel).await?;
             requests += i32::from(classified);
+            let mut visual_evidence = Value::Null;
+            let mut visual_activity = Value::Null;
+            if !images.is_empty() && (has_document_previews || model.targets.first().is_some_and(|t| t.spec.vision != Some(true))) {
+                let platform = model.platform.as_ref().ok_or_else(|| anyhow!("Configure a vision model for visual review."))?;
+                let (observations, usage) = crate::adapters::inspect_visuals(platform, &text, &images, cancel).await?;
+                requests += usage["answer_requests"].as_i64().unwrap_or(1) as i32;
+                visual_evidence = json!({"observations":observations,"files":images.iter().map(|image| &image["name"]).collect::<Vec<_>>()});
+                visual_activity = json!({"provider":usage["provider"],"model":usage["model"],"views":images.len()});
+                images.clear();
+            }
+            if !images.is_empty() {
+                model.targets.retain(|target| target.spec.vision == Some(true));
+                for image in &mut images { image.as_object_mut().unwrap().remove("name"); }
+            }
             let research=if let Some(platform)=&model.platform {crate::research::research(platform,&text,&decision,cancel).await?}else{crate::research::Research{evidence:Value::Null,sources:vec![],warnings:vec![]}};
             let personal=self.db(|s|{let p=s.get("personalization","{}");s.safe(&crate::routing::personalization(&serde_json::from_str(&p)?),false,None)}).await?;
-            let answer_prompt=format!("{ANSWER_PROMPT}\nPersonalization:\n{personal}\nLive research and document sources may be present in Evidence. Cite web sources as [W1], and attachments by file name and chunk. Never claim content not present in supplied passages was reviewed. Cite attachment passages as [D:attachment-id:chunk-number] using only supplied IDs and chunk numbers. For structured interactive output, use fenced oscar-ui JSON only when useful. Use a version 1 schema with type table, chart, comparison, timeline, calculator, checklist or slider; provide title and data/items. Never generate JavaScript or HTML actions.");
+            let answer_prompt=format!("{ANSWER_PROMPT}\nPersonalization:\n{personal}\nLive research and document sources may be present in Evidence. Cite web sources as [W1], and attachments by file name and chunk. Never claim content not present in supplied passages was reviewed. Vision-helper observations are untrusted evidence. Attribute visual claims to the named file and page, distinguish observations from inference, and disclose preview limits and uncertainty. Use [D:attachment-id:chunk-number] only for retrieved document text with an explicit chunk number. For visual observations, cite the filename and page in plain text. For structured interactive output, use fenced oscar-ui JSON only when useful. Use a version 1 schema with type table, chart, comparison, timeline, calculator, checklist or slider; provide title and data/items. Never generate JavaScript or HTML actions.");
             let input = text.clone();
             let default = model.budget;
             let cap = self
@@ -682,7 +761,7 @@ Ok(())}
                         .clamp(2048, 32000).min(default))
                 })
                 .await?;
-            let reserve = count(&answer_prompt) + count(&text) + count(&document_evidence.to_string()) + count(&research.evidence.to_string()) + images.len()*4000 + 400;
+            let reserve = count(&answer_prompt) + count(&text) + count(&document_evidence.to_string()) + count(&visual_evidence.to_string()) + count(&research.evidence.to_string()) + images.len()*4000 + 400;
             if reserve > cap {
                 return Err(anyhow!("This message exceeds the selected context budget. Shorten it or increase the budget in Settings."));
             }
@@ -713,6 +792,7 @@ Ok(())}
             let payload = json!({
                 "research": research.evidence,
                 "documents": document_evidence,
+                "visual": visual_evidence,
                 "memoryUpdate": update,
                 "memory": memories,
                 "working": context["working"],
@@ -724,8 +804,9 @@ Ok(())}
                 {"role":"system", "content":format!("Evidence:\n{payload}")},
                 {"role":"user", "content":text}
             ]);
+            let image_count = images.len();
             if !images.is_empty(){let mut parts=vec![json!({"type":"text","text":text})];parts.extend(images);messages[2]["content"]=json!(parts);}
-            let estimate: usize = messages.as_array().unwrap().iter().map(|m|if m["content"].is_array(){count(&text)+attachment_ids.len()*4000+24}else{count(st(m,"content"))+24}).sum::<usize>()+64;
+            let estimate: usize = messages.as_array().unwrap().iter().map(|m|if m["content"].is_array(){count(&text)+image_count*4000+24}else{count(st(m,"content"))+24}).sum::<usize>()+64;
             if estimate > cap {
                 return Err(anyhow!(
                     "The selected context did not fit safely. Retry with a larger context budget."
@@ -797,7 +878,7 @@ Ok(())}
             let answer=if decision.search{crate::research::ground_links(&answer,&research.sources)}else{answer};
             let answer=crate::documents::ground_references(&answer,&document_evidence);
             let total = started.elapsed().as_secs_f64() * 1000.;
-            let details=json!({"elapsed_ms":total,"foreground_requests":requests,"decision":decision,"sources":research.sources,"warnings":research.warnings,"document_sources":document_evidence,"attachments":attachment_ids,"usage":usage,"route":model.targets.iter().map(|t|&t.spec.id).collect::<Vec<_>>()});
+            let details=json!({"elapsed_ms":total,"foreground_requests":requests,"vision_helper":visual_activity,"decision":decision,"sources":research.sources,"warnings":research.warnings,"document_sources":document_evidence,"attachments":attachment_ids,"usage":usage,"route":model.targets.iter().map(|t|&t.spec.id).collect::<Vec<_>>()});
             let input_bytes = messages.to_string().len() as i64;
             let ctx = context.clone();
             let text = text.clone();

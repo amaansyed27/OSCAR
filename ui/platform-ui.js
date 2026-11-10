@@ -43,6 +43,8 @@ const optionsFor = (select, items, selected) => {
 function selectionLabel(id) {
   if (id?.startsWith("auto:"))
     return "Auto · " + id.slice(5).replace(/^./, (c) => c.toUpperCase());
+  if (id?.startsWith("waterfall:"))
+    return settings?.waterfall_profiles?.find((p) => `waterfall:${p.id}` === id)?.name || "Custom waterfall";
   const m = platformModels.find((m) => m.id === id || m.model === id);
   const p = platformProviders.find((p) => p.id === m?.provider);
   const gptOss = /^openai\/gpt-oss-(20b|120b)$/.exec(m?.name || "");
@@ -441,10 +443,21 @@ $("model-form").onsubmit = async (e) => {
     platformStatus(e.message);
   }
 };
+let editingWaterfall = "";
+let renameWaterfall = false;
+function selectedWaterfall() {
+  return settings.waterfall_profiles?.find((p) => p.id === editingWaterfall);
+}
+function waterfallEntries() {
+  return selectedWaterfall()?.models || settings.waterfall || [];
+}
 function renderWaterfall() {
+  const profiles = settings.waterfall_profiles || [];
+  optionsFor($("waterfall-profile"), [["", "Manual model fallbacks"], ...profiles.map(p => [p.id, p.name])], editingWaterfall);
+  $("waterfall-rename").hidden = $("waterfall-delete").hidden = !selectedWaterfall();
   const list = $("waterfall-list");
   list.replaceChildren();
-  for (const [i, item] of (settings.waterfall || []).entries()) {
+  for (const [i, item] of waterfallEntries().entries()) {
     const row = document.createElement("div");
     row.className = "inline-controls";
     const enabled = document.createElement("input");
@@ -501,7 +514,7 @@ function renderWaterfall() {
       );
       b.disabled =
         (delta < 0 && i === 0) ||
-        (delta > 0 && i === settings.waterfall.length - 1);
+        (delta > 0 && i === waterfallEntries().length - 1);
       b.onclick = () =>
         changeWaterfall((a) => {
           if (delta === 0) a.splice(i, 1);
@@ -514,14 +527,64 @@ function renderWaterfall() {
 }
 async function changeWaterfall(change) {
   try {
-    const next = structuredClone(settings.waterfall || []);
+    const next = structuredClone(waterfallEntries());
     change(next);
-    await saveSettings({ waterfall: next });
+    const profile = selectedWaterfall();
+    if (profile) {
+      const profiles = settings.waterfall_profiles.map(p => p.id === profile.id ? {...p, models: next} : p);
+      const reset = settings.model === `waterfall:${profile.id}` && !next.some(m => m.enabled !== false);
+      await saveSettings({waterfall_profiles: profiles, ...(reset ? {model: "auto:free", reasoning: "auto"} : {})}, true);
+    } else await saveSettings({waterfall: next}, true);
+    $("model-picker").textContent = selectionLabel(settings.model);
+    describeRouting();
     renderWaterfall();
-  } catch (e) {
-    notice(e.message);
-  }
+  } catch (e) { notice(e.message); }
 }
+$("waterfall-profile").onchange = () => {
+  editingWaterfall = $("waterfall-profile").value;
+  $("waterfall-editor").hidden = true;
+  renderWaterfall();
+};
+function openWaterfallEditor(rename) {
+  renameWaterfall = rename;
+  $("waterfall-editor").hidden = false;
+  $("waterfall-name").value = rename ? selectedWaterfall().name : "";
+  $("waterfall-name").focus();
+}
+$("waterfall-new").onclick = () => openWaterfallEditor(false);
+$("waterfall-rename").onclick = () => openWaterfallEditor(true);
+$("waterfall-cancel").onclick = () => { $("waterfall-editor").hidden = true; };
+$("waterfall-editor").onsubmit = async (event) => {
+  event.preventDefault();
+  const name = $("waterfall-name").value.trim();
+  if (!name) return;
+  const id = renameWaterfall ? editingWaterfall : crypto.randomUUID();
+  const profiles = settings.waterfall_profiles || [];
+  const next = renameWaterfall ? profiles.map(p => p.id === id ? {...p, name} : p) : [...profiles, {id, name, models: []}];
+  try {
+    await saveSettings({waterfall_profiles: next}, true);
+    editingWaterfall = id;
+    $("waterfall-editor").hidden = true;
+    $("model-picker").textContent = selectionLabel(settings.model);
+    describeRouting();
+    renderWaterfall();
+  } catch (e) { notice(e.message); }
+};
+$("waterfall-delete").onclick = () => {
+  const profile = selectedWaterfall();
+  if (!profile) return;
+  confirm("Delete waterfall?", profile.name, async () => {
+    const reset = settings.model === `waterfall:${profile.id}`;
+    await saveSettings({
+      waterfall_profiles: settings.waterfall_profiles.filter(p => p.id !== profile.id),
+      ...(reset ? {model: "auto:free", reasoning: "auto"} : {}),
+    }, true);
+    editingWaterfall = "";
+    $("model-picker").textContent = selectionLabel(settings.model);
+    describeRouting();
+    renderWaterfall();
+  });
+};
 $("waterfall-add").onclick = () => {
   const model = $("waterfall-model").value;
   if (model)
@@ -529,77 +592,104 @@ $("waterfall-add").onclick = () => {
 };
 $("spending-ceiling").onchange = () =>
   saveSettings({ spending_ceiling: $("spending-ceiling").value });
-function openModelPicker() {
+function modelPrice(model) {
+  if (model.free && model.input_price === 0 && model.output_price === 0) return "free";
+  if (model.input_price > 0 || model.output_price > 0) return "paid";
+  return "unknown";
+}
+let showUnpricedModels = false;
+function openModelPicker(event) {
+  const profiles = (settings.waterfall_profiles || []).filter(p => p.models.some(m => m.enabled !== false));
   optionsFor($("picker-provider"), [
     ["auto", "Automatic routing"],
+    ...(profiles.length ? [["waterfalls", "Custom waterfalls"]] : []),
     ...platformProviders
-      .filter((p) => p.kind === "inference" && p.protocol !== "restricted" &&
-        platformModels.some((m) => m.provider === p.id && m.enabled))
-      .map((p) => [p.id, p.name]),
+      .filter(p => p.enabled !== false && p.kind === "inference" && p.protocol !== "restricted" &&
+        (p.auth === "none" || p.credentials?.some(key => key.enabled)))
+      .map(p => [p.id, p.name]),
   ]);
-  const id = settings.model.includes("::")
-    ? settings.model
-    : "groq::" + settings.model;
-  $("picker-provider").value = settings.model.startsWith("auto:")
-    ? "auto"
-    : id.split("::")[0];
+  const id = settings.model.includes("::") || settings.model.startsWith("waterfall:")
+    ? settings.model : "groq::" + settings.model;
+  const current = platformModels.find(m => m.id === id);
+  showUnpricedModels = Boolean(current && modelPrice(current) === "unknown");
+  $("picker-paid").checked = current ? modelPrice(current) === "paid" : false;
+  $("picker-provider").value = settings.model.startsWith("auto:") ? "auto"
+    : id.startsWith("waterfall:") ? "waterfalls" : id.split("::")[0];
   if (!$("picker-provider").value) $("picker-provider").value = "auto";
   populatePicker(id);
-  $("model-dialog").showModal();
+  const dialog = $("model-dialog");
+  const anchor = event.currentTarget;
+  dialog.classList.toggle("composer-picker", anchor.id === "model-picker");
+  if (anchor.id === "model-picker") {
+    const rect = anchor.getBoundingClientRect();
+    dialog.style.setProperty("--picker-right", `${Math.max(12, innerWidth - rect.right)}px`);
+    dialog.style.setProperty("--picker-bottom", `${Math.max(12, innerHeight - rect.top + 8)}px`);
+  }
+  dialog.showModal();
 }
 $("model-picker").onclick = openModelPicker;
 $("change-model").onclick = openModelPicker;
 function populatePicker(selected) {
   const provider = $("picker-provider").value;
-  optionsFor(
-    $("picker-model"),
-    provider === "auto"
-      ? [
-          ["auto:efficient", "Lowest known cost"],
-          ["auto:free", "Free only"],
-          ["auto:super", "Highest rated"],
-        ]
-      : platformModels
-          .filter((m) => m.enabled && m.provider === provider)
-          .map((m) => [m.id, m.name]),
-    selected || settings.model,
-  );
+  const direct = !["auto", "waterfalls"].includes(provider);
+  const paid = $("picker-paid").checked;
+  $("picker-price-label").hidden = !direct;
+  const unpriced = $("picker-unpriced");
+  unpriced.hidden = !direct || !platformModels.some(m => m.enabled && m.provider === provider && modelPrice(m) === "unknown");
+  unpriced.textContent = showUnpricedModels ? "Back to price filter" : "Show models with unknown pricing";
+  $("picker-model").size = direct ? 5 : 1;
+  const options = provider === "auto" ? [
+    ["auto:efficient", "Lowest known cost"],
+    ["auto:free", "Free only"],
+    ["auto:super", "Highest rated"],
+  ] : provider === "waterfalls" ? (settings.waterfall_profiles || [])
+    .filter(p => p.models.some(m => m.enabled !== false))
+    .map(p => [`waterfall:${p.id}`, p.name])
+    : platformModels.filter(m => m.enabled && m.provider === provider &&
+        modelPrice(m) === (showUnpricedModels ? "unknown" : paid ? "paid" : "free"))
+      .map(m => [m.id, m.name + (modelPrice(m) === "unknown" ? " · price unknown" : "")]);
+  optionsFor($("picker-model"), options, selected || settings.model);
   if (!$("picker-model").value) $("picker-model").selectedIndex = 0;
   reasoningPicker();
 }
-function reasoningPicker() {
-  const m = platformModels.find((m) => m.id === $("picker-model").value);
-  const levels = m?.reasoning || [];
-  $("apply-model").disabled = !$("picker-model").value;
-  optionsFor(
-    $("picker-reasoning"),
-    [["auto", "Auto"], ...levels.map((l) => [l, l])],
-    settings.reasoning || "auto",
-  );
-  $("picker-reasoning-label").hidden = !levels.length;
-  $("picker-capabilities").textContent = m
-    ? [
-        m.vision
-          ? "Image input verified"
-          : m.vision === false
-            ? "Text input"
-            : "Vision unknown",
-        m.context
-          ? `${m.context.toLocaleString()} context tokens`
-          : "Set context limits in AI Providers",
-
-      ].join(" · ")
-    : $("picker-model").value ? "OSCAR chooses from enabled models with configured providers." : "No models available. Enable a model in Providers & API keys.";
+let pickerEfforts = ["auto"];
+function updateEffortLabel() {
+  const value = pickerEfforts[Number($("picker-reasoning").value)] || "auto";
+  const label = pickerEfforts.length === 1
+    ? platformModels.some(m => m.id === $("picker-model").value) ? "Instant" : "Automatic"
+    : value.charAt(0).toUpperCase() + value.slice(1);
+  $("picker-effort-value").textContent = label;
+  $("picker-reasoning").setAttribute("aria-valuetext", label);
 }
-$("picker-provider").onchange = () => populatePicker();
+function reasoningPicker() {
+  const m = platformModels.find(m => m.id === $("picker-model").value);
+  pickerEfforts = ["auto", ...(m?.reasoning || [])];
+  const slider = $("picker-reasoning");
+  slider.max = pickerEfforts.length - 1;
+  slider.disabled = pickerEfforts.length === 1;
+  slider.value = Math.max(0, pickerEfforts.indexOf(settings.reasoning));
+  updateEffortLabel();
+  $("apply-model").disabled = !$("picker-model").value;
+  $("picker-capabilities").textContent = m
+    ? m.vision === true ? "Supports image input" : "Visual files use the vision helper when available."
+    : $("picker-model").value ? "Uses your configured model routes." : "No enabled models in this view.";
+}
+$("picker-provider").onchange = () => {
+  const list = platformModels.filter(m => m.enabled && m.provider === $("picker-provider").value);
+  showUnpricedModels = list.length > 0 && list.every(m => modelPrice(m) === "unknown");
+  populatePicker();
+};
+$("picker-paid").onchange = () => { showUnpricedModels = false; populatePicker(); };
+$("picker-unpriced").onclick = () => { showUnpricedModels = !showUnpricedModels; populatePicker(); };
 $("picker-model").onchange = reasoningPicker;
+$("picker-reasoning").oninput = updateEffortLabel;
 $("close-model-picker").onclick = () => $("model-dialog").close();
 $("apply-model").onclick = async () => {
   const model = $("picker-model").value;
   if (!model) return;
   $("apply-model").disabled = true;
   try {
-    await saveSettings({ model, reasoning: $("picker-reasoning").value || "auto" }, true);
+    await saveSettings({ model, reasoning: pickerEfforts[Number($("picker-reasoning").value)] || "auto" }, true);
   } catch (error) {
     $("picker-capabilities").textContent = error.message;
     return;

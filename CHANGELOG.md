@@ -2,6 +2,12 @@
 
 Entries describe each stage at its date. Later entries supersede earlier behavior and limitations.
 
+## 2026-11-10 — Visual review and model controls
+
+- Added a free vision helper for text-only chat models, scanned PDF previews, and embedded Office images.
+- Added named model waterfalls, a free/paid model filter, and a reasoning slider that follows each model’s supported levels.
+- Moved the attachment, model, search, and send controls into the composer.
+
 ## 2026-11-10 — Reply activity
 
 - Moved model, timing, calls, and other recorded reply details into a collapsed section above the answer.

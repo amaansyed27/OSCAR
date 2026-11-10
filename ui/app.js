@@ -902,6 +902,7 @@ function replyActivity(row, open) {
       const requests = data.foreground_requests ?? usage?.answer_requests;
       if (Number.isInteger(requests)) add("Model calls", String(requests));
       if (usage?.output_limit_recovery) add("Recovery", "Retried with a shorter answer request");
+      if (data.vision_helper?.model) add("Vision helper", `${selectionLabel(`${data.vision_helper.provider}::${data.vision_helper.model}`)} · ${data.vision_helper.views} views`);
       if (data.decision?.task) add("Task", data.decision.task);
       if (data.decision?.search && data.sources?.length)
         add("Web research", `${data.sources.length} sources gathered`);
