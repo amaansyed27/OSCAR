@@ -51,6 +51,11 @@ function selectionLabel(id) {
   const name = gptOss ? `GPT-OSS ${gptOss[1].toUpperCase()}` : m?.name;
   return m ? `${p?.name || m.provider} · ${name}` : id || "Choose a model";
 }
+function updateModelTrigger(model) {
+  const label = selectionLabel(model);
+  $("model-picker-label").textContent = label;
+  $("model-picker").title = label;
+}
 async function refreshPlatform() {
   [platformProviders, platformModels] = await Promise.all([
     api.cloudProviders(),
@@ -79,7 +84,7 @@ async function refreshPlatform() {
     if (group.children.length) providerSelect.append(group);
   }
   providerSelect.value = providerId;
-  $("model-picker").textContent = selectionLabel(current.model);
+  updateModelTrigger(current.model);
   $("search-mode").value = current.search_mode || "auto";
   $("spending-ceiling").value = current.spending_ceiling || "";
   $("search-paid-budget").value = current.search_paid_credits || "0";
@@ -535,7 +540,7 @@ async function changeWaterfall(change) {
       const reset = settings.model === `waterfall:${profile.id}` && !next.some(m => m.enabled !== false);
       await saveSettings({waterfall_profiles: profiles, ...(reset ? {model: "auto:free", reasoning: "auto"} : {})}, true);
     } else await saveSettings({waterfall: next}, true);
-    $("model-picker").textContent = selectionLabel(settings.model);
+    updateModelTrigger(settings.model);
     describeRouting();
     renderWaterfall();
   } catch (e) { notice(e.message); }
@@ -565,7 +570,7 @@ $("waterfall-editor").onsubmit = async (event) => {
     await saveSettings({waterfall_profiles: next}, true);
     editingWaterfall = id;
     $("waterfall-editor").hidden = true;
-    $("model-picker").textContent = selectionLabel(settings.model);
+    updateModelTrigger(settings.model);
     describeRouting();
     renderWaterfall();
   } catch (e) { notice(e.message); }
@@ -580,7 +585,7 @@ $("waterfall-delete").onclick = () => {
       ...(reset ? {model: "auto:free", reasoning: "auto"} : {}),
     }, true);
     editingWaterfall = "";
-    $("model-picker").textContent = selectionLabel(settings.model);
+    updateModelTrigger(settings.model);
     describeRouting();
     renderWaterfall();
   });
@@ -608,7 +613,7 @@ function openModelPicker(event) {
         (p.auth === "none" || p.credentials?.some(key => key.enabled)))
       .map(p => [p.id, p.name]),
   ]);
-  const id = settings.model.includes("::") || settings.model.startsWith("waterfall:")
+  const id = settings.model.includes("::") || /^(auto|waterfall):/.test(settings.model)
     ? settings.model : "groq::" + settings.model;
   const current = platformModels.find(m => m.id === id);
   showUnpricedModels = Boolean(current && modelPrice(current) === "unknown");
@@ -622,7 +627,9 @@ function openModelPicker(event) {
   dialog.classList.toggle("composer-picker", anchor.id === "model-picker");
   if (anchor.id === "model-picker") {
     const rect = anchor.getBoundingClientRect();
-    dialog.style.setProperty("--picker-right", `${Math.max(12, innerWidth - rect.right)}px`);
+    const width = Math.min(348, innerWidth - 24);
+    const right = Math.min(Math.max(12, innerWidth - rect.right), innerWidth - width - 12);
+    dialog.style.setProperty("--picker-right", `${right}px`);
     dialog.style.setProperty("--picker-bottom", `${Math.max(12, innerHeight - rect.top + 8)}px`);
   }
   dialog.showModal();
@@ -637,7 +644,6 @@ function populatePicker(selected) {
   const unpriced = $("picker-unpriced");
   unpriced.hidden = !direct || !platformModels.some(m => m.enabled && m.provider === provider && modelPrice(m) === "unknown");
   unpriced.textContent = showUnpricedModels ? "Back to price filter" : "Show models with unknown pricing";
-  $("picker-model").size = direct ? 5 : 1;
   const options = provider === "auto" ? [
     ["auto:efficient", "Lowest known cost"],
     ["auto:free", "Free only"],
@@ -648,31 +654,48 @@ function populatePicker(selected) {
     : platformModels.filter(m => m.enabled && m.provider === provider &&
         modelPrice(m) === (showUnpricedModels ? "unknown" : paid ? "paid" : "free"))
       .map(m => [m.id, m.name + (modelPrice(m) === "unknown" ? " · price unknown" : "")]);
-  optionsFor($("picker-model"), options, selected || settings.model);
-  if (!$("picker-model").value) $("picker-model").selectedIndex = 0;
+  const preferred = selected || settings.model;
+  selectedPickerModel = options.some(([id]) => id === preferred) ? preferred : options[0]?.[0] || "";
+  const list = $("picker-model-list");
+  list.replaceChildren();
+  for (const [id, label] of options) {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.dataset.model = id;
+    row.textContent = label;
+    row.setAttribute("aria-pressed", String(id === selectedPickerModel));
+    row.onclick = () => {
+      selectedPickerModel = id;
+      for (const entry of list.children)
+        entry.setAttribute("aria-pressed", String(entry.dataset.model === id));
+      reasoningPicker();
+    };
+    list.append(row);
+  }
   reasoningPicker();
 }
+let selectedPickerModel = "";
 let pickerEfforts = ["auto"];
 function updateEffortLabel() {
   const value = pickerEfforts[Number($("picker-reasoning").value)] || "auto";
   const label = pickerEfforts.length === 1
-    ? platformModels.some(m => m.id === $("picker-model").value) ? "Instant" : "Automatic"
+    ? platformModels.some(m => m.id === selectedPickerModel) ? "Instant" : "Automatic"
     : value.charAt(0).toUpperCase() + value.slice(1);
   $("picker-effort-value").textContent = label;
   $("picker-reasoning").setAttribute("aria-valuetext", label);
 }
 function reasoningPicker() {
-  const m = platformModels.find(m => m.id === $("picker-model").value);
+  const m = platformModels.find(m => m.id === selectedPickerModel);
   pickerEfforts = ["auto", ...(m?.reasoning || [])];
   const slider = $("picker-reasoning");
   slider.max = pickerEfforts.length - 1;
   slider.disabled = pickerEfforts.length === 1;
   slider.value = Math.max(0, pickerEfforts.indexOf(settings.reasoning));
   updateEffortLabel();
-  $("apply-model").disabled = !$("picker-model").value;
+  $("apply-model").disabled = !selectedPickerModel;
   $("picker-capabilities").textContent = m
     ? m.vision === true ? "Supports image input" : "Visual files use the vision helper when available."
-    : $("picker-model").value ? "Uses your configured model routes." : "No enabled models in this view.";
+    : selectedPickerModel ? "Uses your configured model routes." : "No enabled models in this view.";
 }
 $("picker-provider").onchange = () => {
   const list = platformModels.filter(m => m.enabled && m.provider === $("picker-provider").value);
@@ -681,11 +704,10 @@ $("picker-provider").onchange = () => {
 };
 $("picker-paid").onchange = () => { showUnpricedModels = false; populatePicker(); };
 $("picker-unpriced").onclick = () => { showUnpricedModels = !showUnpricedModels; populatePicker(); };
-$("picker-model").onchange = reasoningPicker;
 $("picker-reasoning").oninput = updateEffortLabel;
 $("close-model-picker").onclick = () => $("model-dialog").close();
 $("apply-model").onclick = async () => {
-  const model = $("picker-model").value;
+  const model = selectedPickerModel;
   if (!model) return;
   $("apply-model").disabled = true;
   try {
@@ -696,7 +718,7 @@ $("apply-model").onclick = async () => {
   } finally {
     $("apply-model").disabled = false;
   }
-  $("model-picker").textContent = selectionLabel(model);
+  updateModelTrigger(model);
   describeRouting();
   $("model-dialog").close();
 };

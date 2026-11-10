@@ -2,6 +2,11 @@
 
 Entries describe each stage at its date. Later entries supersede earlier behavior and limitations.
 
+## 2026-11-11 — Conversation controls
+
+- Redrew navigation and composer icons, tightened the composer layout, and replaced the model list box with compact selectable rows.
+- Kept the model picker and send button inside narrow desktop windows.
+
 ## 2026-11-10 — Visual review and model controls
 
 - Added a free vision helper for text-only chat models, scanned PDF previews, and embedded Office images.

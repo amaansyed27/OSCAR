@@ -53,7 +53,7 @@ async function ask(text) {
       await p.locator('[data-settings="model"]').click();
       await p.locator("#change-model").click();
       await p.locator("#picker-provider").selectOption("groq");
-      await p.locator("#picker-model").selectOption("groq::openai/gpt-oss-120b");
+      await p.locator('#picker-model-list [data-model="groq::openai/gpt-oss-120b"]').click();
       await p.locator("#apply-model").click();
       await p.locator("#model-dialog").waitFor({ state: "hidden" });
       assert.match(
@@ -64,7 +64,7 @@ async function ask(text) {
       await p.locator('[data-settings="model"]').click();
       await p.locator("#change-model").click();
       await p.locator("#picker-provider").selectOption("groq");
-      await p.locator("#picker-model").selectOption("groq::openai/gpt-oss-20b");
+      await p.locator('#picker-model-list [data-model="groq::openai/gpt-oss-20b"]').click();
       await p.locator("#apply-model").click();
       await p.locator("#model-dialog").waitFor({ state: "hidden" });
       await ask(
