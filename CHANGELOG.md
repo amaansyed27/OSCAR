@@ -2,6 +2,14 @@
 
 Entries describe each stage at its date. Later entries supersede earlier behavior and limitations.
 
+## 2026-11-10 — Settings redesign
+
+- Reorganized every Settings page with new icons, clearer groups, and layouts that fit narrow windows.
+- Separated provider keys, models, and connection details. Model tests can target an individual enabled key.
+- Added task-based model ratings, bounded classification for ambiguous questions, and Replicate prediction recovery/cancellation.
+- Improved comparison searches and source deduplication. Checked all 21 configured credential slots, free-model routing and both custom API formats.
+- Verified native layouts, retry recovery and the 100K-history probe. Unconfigured providers and installer acceptance retain the limits in the evaluation.
+
 ## 2026-11-07 — Slice 02 · 0.3.0
 
 - Added cloud model selection, automatic routing, fallback, and protected credentials in Settings.

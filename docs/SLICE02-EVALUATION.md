@@ -1,4 +1,35 @@
-# Slice 02 evaluation · 2026-11-07
+# Slice 02 evaluation · updated 2026-11-10
+
+## Follow-through verification — 10 November
+
+Verified follow-through implementation: `244ffbcdd730d4b3dc31b9dd3354c9c485bfc4f5`. The following documentation commit records delivery.
+
+The sections below preserve the original release evidence. This update supersedes their open items only where explicitly verified here. Owner acceptance remains separate.
+
+- **Settings:** all six sections now use consistent icons, grouped controls and narrow layouts. Providers separates Access, Models and Connection; advanced model metadata stays collapsed. Native screenshots cover six sections in both themes at 1536×900 and Providers at 600×650 in `.oscar/settings-review/`. UI Craft review inspected the actual captures. Hover/pin, keyboard navigation, tooltip, reduced-motion and saved preferences checks passed.
+- **Credentials:** every one of the 21 enabled local slots passed individual read-only access checks: Groq 4, OpenRouter 4, NVIDIA 2, Google 4, Z.ai 2, Ollama Cloud 2, Tavily 3. Discovery returned 11/429/84/47/12/23 models respectively. This is discovery/access evidence, not inference certification for every key. The local files contain 20 of 22 template slots plus Google `_4`; only the restricted Coding Plan slots are absent. Credentials remain unchanged and outside Git.
+- **Routing:** live Efficient, Free and Super completed at zero reported inference cost. Super now prefers task-specific evidence when supplied, retaining capability and spending constraints. Ratings require an evidence description. A zero-price, structured-output Decision Model classified an ambiguous request; an eight-second timeout and local fallback bound its cost/latency. Search Off and vision requirements cannot be overridden by classifier output. Ordinary obvious requests retain their single answer call.
+- **Custom endpoints:** actual OpenAI-compatible and Anthropic-compatible streaming passed against OpenRouter's public endpoints using an isolated protected credential record. This does not certify every compatible service. [OpenRouter Messages API](https://openrouter.ai/docs/api/api-reference/anthropic-messages/create-a-message) and [model metadata](https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties).
+- **Replicate:** bounded asynchronous prediction polling now handles text output, completion, failure, stop and timeout. It attempts remote cancellation on interruption and reports when acknowledgement is unavailable. Lifecycle URLs derive from the configured origin and a validated ID, never arbitrary returned URLs. Output is delivered incrementally when polling exposes new text; it is not token-level SSE. URL/output contracts passed; live Replicate remains untested because no account is configured. [Replicate lifecycle API](https://replicate.com/docs/reference/http).
+- **Research:** comparison queries now search each subject, tracking-only parameters are removed without merging distinct query-based documents, and publication dates are requested explicitly. A document containing hostile instructions did not override its source-grounded answer in the live fixture. Rust ownership research cited the supplied primary page. The initial Rust/Go comparison lacked official Go evidence; refined queries retrieved `go.dev` and `doc.rust-lang.org`. The first follow-up exhausted its 2K output allowance; a 4K retry completed using the same user record. A test initially used `retry` instead of `retryId` and created a fixture turn; the corrected check verified nonduplication. [Tavily parameters](https://docs.tavily.com/documentation/api-reference/endpoint/search).
+
+| Bounded live fixture | Super VL | Lightning |
+|---|---:|---:|
+| Arithmetic | correct, 1.78 s | correct, 7.74 s |
+| Python range | correct, 1.61 s | correct, 5.18 s |
+| Ordering deduction | correct, 1.76 s | correct, 3.04 s |
+
+Six of six answers passed, with zero reported inference cost. Sequential prompts shared growing context; these individual observations are not a controlled general intelligence or latency benchmark. The document injection answer took 2.80 s; custom OpenAI reply 1.31 s; initial research answers 10.86 and 24.20 s. Live receipts are `.oscar/completion/cloud-live.json`, `cloud-followup.json` and `research-retry.json`.
+
+**Accuracy limits:** citation URLs were supplied sources, but this does not guarantee every claim is supported. Manual review found overgeneralization about Rust moves (Copy types are exceptions), misleading wording implying a move itself frees memory, and a confusion between GC tracing and tuning. The system still needs human judgment for detailed claims; it is not equivalent to an established research assistant based on these small tests. The hostile-document result does not establish universal prompt-injection immunity. OCR is not implemented; image-only PDFs must not be treated as extracted text.
+
+The complete follow-up suite subsequently passed all three live checks with the 4K answer allowance. Final Windows packaging produced a 26.65 MiB executable and a 9.43 MiB unsigned installer. A release launch attempted while another isolated native check was running exited; the serial rerun passed real streaming, restart, source-backed memory, fonts and all six theme screenshots.
+
+**Regression/performance:** 54 Rust tests and warnings-denied Clippy passed. Native Slice 02 integration, Settings review and motion tests passed. The 100,001-record warm-cache probe measured specific retrieval/packing p95 **0.84/0.17 ms**, broad **46.09/1.82 ms**. All 8K/16K/32K probes retained the original source and 5/11/22 recent long messages. The existing four-cycle compaction checks retained 12/12 expected project values with originals intact. These tests do not establish a production memory-hallucination rate.
+
+**Remaining acceptance:** unconfigured specialized providers have protocol/contract evidence only, not live IAM/OAuth/model compatibility. Replicate cancellation lacks a live account check. Full screen-reader testing, installer install/uninstall and owner visual approval remain open. Local conversation storage is unencrypted; automatic extraction and lexical retrieval remain fallible. No paid inference was authorized or used in these acceptance runs.
+
+---
 
 OSCAR 0.3.0 is the Windows owner review build. The provider table records the documented adapter interfaces. Live results are listed separately below.
 

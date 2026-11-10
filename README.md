@@ -37,11 +37,11 @@ The existing Groq selection is the default for a fresh profile. To use OpenRoute
 
 - **Conversation** includes streamed replies, Stop and Retry, model and search choices, attachments and source previews. Enter sends. Shift+Enter adds a line. Clear Chat hides older turns from the main view and keeps the underlying context, personal memories and searchable archive.
 - **Memories:** search personal statements, inspect their sources, correct or forget them. Conversation history searches the complete archive with dates, relevance sorting, surrounding messages and a jump to the original position.
-- **Settings** includes AI Providers, Personalization, Appearance, Model, Memory and Data & privacy. Choose themes, routing, response preferences, learning and working-context controls. Choices persist.
+- **Settings** includes Providers, Personalization, Appearance, Models & routing, Memory and Data & privacy. Choose themes, routing, response preferences, learning and working-context controls. Choices persist.
 
 The main icon sidebar expands on hover and collapses when the pointer leaves. Keyboard focus also reveals navigation. The pin beside the OSCAR wordmark keeps it open across restarts; unpinning restores automatic collapse. Settings and an inactive profile icon remain at the bottom. Icon controls show tooltips where labels are absent. Subtle transitions respect the system reduced-motion preference.
 
-Normal turns use one foreground answer request. Ordinary memory learning runs afterwards in a durable background queue; explicit corrections and forgetting may need an additional request before answering. A reply's acknowledgement is not proof that background learning has committed: inspect Memories. Original user quotes are the memory evidence.
+Ordinary clear requests use one foreground answer request. Ambiguous requests can first use an enabled, freshly verified zero-price Decision Model with an eight-second timeout; unavailable classification falls back to local rules. Ordinary memory learning runs afterwards in a durable background queue; explicit corrections and forgetting may need an additional request before answering. A reply's acknowledgement is not proof that background learning has committed: inspect Memories. Original user quotes are the memory evidence.
 
 History, working state, source-linked extractive episode summaries, personal memory and draft live in `%APPDATA%\oscar\oscar.sqlite`. They stay independent of the provider. The Tauri migration makes an `oscar.before-tauri.sqlite` backup beside an existing database on first open and preserves the existing schema, records and source IDs. Earlier revision backups remain intact. Close OSCAR before manually copying its data folder. `OSCAR_DATA_DIR` selects an isolated folder for testing.
 
@@ -59,6 +59,7 @@ Conversation storage is local and unencrypted. The selected cloud provider recei
 npm test
 npm run test:slice02
 npm run test:ui
+node tests/settings-review.cjs
 npm run test:performance
 npm run build
 npm run test:release
@@ -69,3 +70,5 @@ Run desktop checks one at a time with OSCAR closed. The tests use isolated local
 Screenshots and local receipts go to `.oscar/slice02-evidence/`. The 100K-history probe records local retrieval and packing separately in `.oscar/tauri-evidence/performance.json`. See the [Slice 02 evaluation](docs/SLICE02-EVALUATION.md) for results, provider coverage and the owner review boundary.
 
 Dawnlight Labs · India
+
+Additional bounded live checks: `node tests/cloud-live.cjs` verifies every enabled credential slot, zero-price routing, document injection handling and research. `node tests/cloud-followup.cjs` verifies custom Anthropic compatibility, ambiguous classification and comparison research. Both use isolated data and included search quota; provider availability may change.

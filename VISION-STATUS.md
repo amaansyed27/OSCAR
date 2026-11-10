@@ -1,4 +1,4 @@
-# OSCAR — Vision Status Checklist
+# OSCAR â€” Vision Status Checklist
 
 **Repository:** [amaansyed27/OSCAR](https://github.com/amaansyed27/OSCAR)  
 **Current implementation:** version 0.3.0, Tauri 2/Rust Windows Desktop. [Slice 02 evaluation](docs/SLICE02-EVALUATION.md). Owner approval and installer acceptance remain pending.
@@ -90,7 +90,7 @@
 - [ ] Android connects to the same authoritative Core.
 - [ ] Optional old-laptop/home-server Core host, installation and migration.
 - [ ] Optional Oracle Cloud Always Free hosting, subject to current availability and quotas.
-- [ ] Secure Cloud–Desktop–Android authenticated sync and remote action routing.
+- [ ] Secure Cloudâ€“Desktopâ€“Android authenticated sync and remote action routing.
 - [ ] Clear host-of-record ownership, recovery, re-enrollment and backups.
 - [ ] Optional relay/API services without duplicating identity or memory.
 
@@ -122,7 +122,7 @@ For each completed checkbox record in a commit, issue or short feature note:
 
 Do **not** mark an entire capability complete solely because code was copied from [legacy OSCAR](https://github.com/Amaan27-Buzz/oscar), a test passed, or an installer was produced.
 
-## Slice 01 — Desktop conversation (2026-11-06)
+## Slice 01 â€” Desktop conversation (2026-11-06)
 
 **Initial engineering checks passed; the owner rejected the initial UI.** This historical record is superseded by the revision below. The broad capability checkboxes above remain unaccepted and include work beyond this slice.
 
@@ -138,7 +138,7 @@ Do **not** mark an entire capability complete solely because code was copied fro
 
 Earlier verification caught a retired-model 404, citation formatting/source-ID issues and an intermittent memory-update warning. The supported model, explicit source references, citation normalization and strict extraction schema were applied before the final passing run. An initially overstrict check rejected a valid comparison of the new preference with the old one; the check now verifies the recommendation and the superseded-source rules separately.
 
-## Slice 01 revision — Simple Desktop UI and LRA (2026-11-06)
+## Slice 01 revision â€” Simple Desktop UI and LRA (2026-11-06)
 
 *Historical Electron implementation; superseded by the Tauri migration below.*
 
@@ -159,7 +159,7 @@ Earlier verification caught a retired-model 404, citation formatting/source-ID i
 
 `npm run test:desktop` runs the actual Windows Electron application with isolated data and real Groq calls. It verifies restart continuity; committed preference learning/correction; historical and paraphrased recall; forgetting while keeping an unrelated active memory; archive recall and unfinished work across 10,000 synthetic intervening messages; actual stream deltas; cancellation and saved partial text after restart; real model switching; source search/jump; light/dark/System themes; persisted settings; and a renderer that continues painting while the backend searches. The transport test deliberately closes a loopback connection, then restarts and retries against real Groq with one original user turn.
 
-Actual screenshots cover all three populated pages in both themes at 1536×900 and smaller 760×700 layouts. Local fonts were verified loaded, including DM Mono for code. Long Markdown, code and tables, focus, reduced motion, scrolling and meaningful confirmation controls were checked. Light/dark body, secondary-text and control-boundary contrast checks passed; all three pages also passed a 200% zoom/reflow check at a 760px window. Full screen-reader conformance was not audited. These are runtime screenshots, not generated mockups. Receipts and images are under ignored `.oscar/revision-evidence/`.
+Actual screenshots cover all three populated pages in both themes at 1536Ã—900 and smaller 760Ã—700 layouts. Local fonts were verified loaded, including DM Mono for code. Long Markdown, code and tables, focus, reduced motion, scrolling and meaningful confirmation controls were checked. Light/dark body, secondary-text and control-boundary contrast checks passed; all three pages also passed a 200% zoom/reflow check at a 760px window. Full screen-reader conformance was not audited. These are runtime screenshots, not generated mockups. Receipts and images are under ignored `.oscar/revision-evidence/`.
 
 **Observed performance:** `npm run test:performance` measures 100,001 synthetic records under a warm cache. Latest p95 local retrieval was 1.02 ms for a specific query and 116.71 ms for a broad query; packing was 0.23 ms and 8.36 ms respectively. The 8K/16K/32K probe retained the original historical source at every budget and carried 5/11/22 recent long messages. Provider timing is separate in per-turn metrics; quota cooldowns are not included in these local measurements. These results are not production-scale recall-quality proof.
 
@@ -177,9 +177,9 @@ Actual screenshots cover all three populated pages in both themes at 1536×900 a
 - [x] Dedicated searchable Settings navigation for Appearance, Model, Memory and Data & privacy, with existing working controls.
 - [x] Subtle page/message arrivals, composer resizing and sidebar transitions, with reduced-motion support.
 
-**Verification:** `npm run test:ui` passed actual Electron interaction checks for sidebar placement/persistence, tooltips/Escape, inert profile, Settings search/keyboard navigation, rapid page changes, composer resizing, light/dark layouts at 1536×900, smaller 760×700 layout and reduced motion. Animation sampling confirmed intermediate sidebar widths; it is not a general performance benchmark. Screenshots are in ignored `.oscar/motion-evidence/`. Owner acceptance remains pending; LRA behavior is unchanged by this refinement.
+**Verification:** `npm run test:ui` passed actual Electron interaction checks for sidebar placement/persistence, tooltips/Escape, inert profile, Settings search/keyboard navigation, rapid page changes, composer resizing, light/dark layouts at 1536Ã—900, smaller 760Ã—700 layout and reduced motion. Animation sampling confirmed intermediate sidebar widths; it is not a general performance benchmark. Screenshots are in ignored `.oscar/motion-evidence/`. Owner acceptance remains pending; LRA behavior is unchanged by this refinement.
 
-## Slice 01 — Tauri/Rust migration (2026-11-06)
+## Slice 01 â€” Tauri/Rust migration (2026-11-06)
 
 **The current runtime is Tauri 2 with a Rust backend. Earlier Electron evidence above is historical. Owner acceptance remains pending.**
 
@@ -195,14 +195,14 @@ Actual screenshots cover all three populated pages in both themes at 1536×900 a
 
 **Delivery/limits:** optimized Windows executable (19.71 MiB) and NSIS installer (5.82 MiB) built. `npm run test:release` verified the actual release executable, real streaming, restart, source-backed memory, local fonts and all six theme screenshots in `.oscar/tauri-evidence/`. `npm start` also launched the development app. WebView2 is required. Installer signing and owner install/uninstall acceptance are not complete. Existing lexical recall, fallible automatic extraction, provider quota and unencrypted local storage limitations remain. No new product features or framework performance claims are implied. Stop for owner review.
 
-## Slice 01 — Hover navigation (2026-11-07)
+## Slice 01 â€” Hover navigation (2026-11-07)
 
 - [x] Sidebar opens transiently on hover or keyboard focus; leaving navigation collapses it unless pinned.
 - [x] Top pin beside the wordmark persists across restarts; unpinning restores hover behavior. Old expansion preferences do not silently pin the sidebar.
 
 **Verification:** actual Tauri UI checks passed hover enter/leave, animated width, pin/unpin and restart persistence, keyboard navigation, tooltip/Escape, rapid page changes, Settings search, light/dark screenshots, smaller layouts and reduced motion. Owner acceptance remains pending.
 
-## Slice 02 — Cloud conversation (2026-11-07)
+## Slice 02 â€” Cloud conversation (2026-11-07)
 
 - [x] Configured-provider metadata discovery, numbered credential import and Windows-protected Settings records checked. Live discovery covered six inference accounts and Tavily.
 - [x] OpenRouter free text, document and image replies streamed in the app. The release check verified an ordered fallback within a zero spending ceiling, usage recording and restart persistence.
@@ -211,3 +211,14 @@ Actual screenshots cover all three populated pages in both themes at 1536×900 a
 - [x] Clear Chat preserves recall and the full archive. Verified token and idle compaction, original source retention, correction and forget isolation, and bounded retrieval over 100,001 synthetic records.
 
 The 50 Rust checks, Clippy, desktop integration and release smoke passed. Broad provider and model coverage remains conditional on account-level verification. The [evaluation](docs/SLICE02-EVALUATION.md) records measured results, open gaps and screenshots.
+
+
+## Slice 02 follow-through — Settings and cloud verification (2026-11-10)
+
+- [x] Six redesigned Settings sections, provider Access/Models/Connection tabs, narrow layout, both themes, keyboard navigation and preserved hover/pin behavior verified in native Tauri.
+- [x] All 21 locally configured numbered slots passed individual read-only provider discovery/search access checks. No private configuration changed. The two restricted Z.ai Coding Plan slots are not present in this checkout.
+- [x] Live zero-price Efficient/Free/Super, custom OpenAI and Anthropic compatible endpoints, and bounded ambiguous-request classification verified. Two free models passed six small math/code/reasoning fixtures; scores are evidence-scoped, not general quality rankings.
+- [x] Document instruction injection fixture resisted; comparison research retrieved both requested primary sources after query refinement. Output-limit recovery retried the same user turn without duplication.
+- [x] 54 Rust checks and Clippy passed. Native integration, Settings/motion checks and 100,001-record retrieval probe passed; details and retained failures are in the evaluation.
+
+Replicate text prediction polling and cancellation are implemented with URL/output contract checks; live Replicate, other unconfigured specialized accounts, comprehensive accessibility and owner installation/visual acceptance remain unverified. Research can still overgeneralize supported facts. No later product slice is started.
