@@ -1760,6 +1760,7 @@ summary {
 }
 .picker-price input:checked::before { transform: translateX(15px); }
 .picker-effort {
+  --effort-accent: #c47855;
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
@@ -1770,7 +1771,7 @@ summary {
   font-size: 12px;
 }
 .picker-effort output {
-  color: var(--focus);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 .effort-control {
@@ -1803,16 +1804,16 @@ summary {
   background: var(--strong);
   transition: background-color 140ms ease;
 }
-.effort-stops span.passed { background: var(--focus); }
+.effort-stops span.passed { background: var(--effort-accent); }
 .effort-thumb {
   position: absolute;
   top: 50%;
   left: var(--effort-position, 0%);
   width: var(--effort-thumb-size);
   height: var(--effort-thumb-size);
-  border: 1px solid var(--strong);
+  border: 1px solid color-mix(in srgb, var(--effort-accent) 80%, var(--ink));
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--effort-accent);
   transform: translate(-50%, -50%);
   box-shadow: 0 2px 5px #0003;
   transition: left 190ms cubic-bezier(.22, 1, .36, 1), transform 120ms ease;
