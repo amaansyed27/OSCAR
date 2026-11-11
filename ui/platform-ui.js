@@ -677,12 +677,18 @@ function populatePicker(selected) {
 let selectedPickerModel = "";
 let pickerEfforts = ["auto"];
 function updateEffortLabel() {
-  const value = pickerEfforts[Number($("picker-reasoning").value)] || "auto";
+  const slider = $("picker-reasoning");
+  const index = Number(slider.value);
+  const value = pickerEfforts[index] || "auto";
   const label = pickerEfforts.length === 1
     ? platformModels.some(m => m.id === selectedPickerModel) ? "Instant" : "Automatic"
     : value.charAt(0).toUpperCase() + value.slice(1);
   $("picker-effort-value").textContent = label;
-  $("picker-reasoning").setAttribute("aria-valuetext", label);
+  slider.setAttribute("aria-valuetext", label);
+  const percent = pickerEfforts.length > 1 ? index / (pickerEfforts.length - 1) * 100 : 0;
+  $("picker-effort-control").style.setProperty("--effort-position", `${percent}%`);
+  for (const [step, stop] of Array.from($("picker-effort-stops").children).entries())
+    stop.classList.toggle("passed", step <= index);
 }
 function reasoningPicker() {
   const m = platformModels.find(m => m.id === selectedPickerModel);
@@ -691,6 +697,10 @@ function reasoningPicker() {
   slider.max = pickerEfforts.length - 1;
   slider.disabled = pickerEfforts.length === 1;
   slider.value = Math.max(0, pickerEfforts.indexOf(settings.reasoning));
+  $("picker-effort-control").hidden = slider.disabled;
+  $("picker-effort-stops").replaceChildren(
+    ...pickerEfforts.map(() => document.createElement("span")),
+  );
   updateEffortLabel();
   $("apply-model").disabled = !selectedPickerModel;
   $("picker-capabilities").textContent = m

@@ -1083,7 +1083,13 @@
       <div id="picker-reasoning-label" class="picker-effort">
         <label for="picker-reasoning">Reasoning effort</label>
         <output id="picker-effort-value" for="picker-reasoning">Instant</output>
-        <input id="picker-reasoning" type="range" min="0" max="0" step="1" value="0" />
+        <div id="picker-effort-control" class="effort-control" hidden>
+          <div class="effort-rail" aria-hidden="true">
+            <div id="picker-effort-stops" class="effort-stops"></div>
+            <span class="effort-thumb"></span>
+          </div>
+          <input id="picker-reasoning" type="range" min="0" max="0" step="1" value="0" />
+        </div>
       </div>
       <p id="picker-capabilities" class="secondary" aria-live="polite"></p>
       <button id="apply-model" class="primary">Use model</button>
